@@ -4,6 +4,9 @@ What changed for every user, newest first.
 
 ## Unreleased
 
+- GenMedia Edit board: preserve manual caption line breaks, size editable Resolve text to the approved canvas, honor phone display rotation, and fade motion graphics fully out on their final frame. Verified the portrait preview/approval/Resolve correction workflow with synthetic media; earlier manual Text+ finishing remains in its original timeline.
+- Local browser captures now force-stop an unresponsive temporary browser after a graceful shutdown attempt and clean its profile after exit. A real-process shutdown regression covers the failure path.
+
 ## ai-editor 2.7.26, creator-teardown 2.7.26 (2026-10-23)
 - New video: "Add images or links" is now "Add videos, images or links". Choose, drop or paste videos (up to 2 GB each) as well as pictures and links, up to 50 in all. Each file uploads on its own with a progress bar; a video shows a frame from it. Claude puts each one in first, on its "Show when I say..." words.
 - B-roll has Specific clips: drag clips in, choose files, or Pick from folders to tick clips inside a connected folder. Every specific clip goes in the video; the ticked folders fill the rest.

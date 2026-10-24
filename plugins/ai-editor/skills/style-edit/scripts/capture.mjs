@@ -151,11 +151,17 @@ function launch(bin) {
     const done = (v) => { clearTimeout(timer); listeners.splice(listeners.indexOf(l), 1); ok(v); };
     listeners.push(l);
   });
-  // Chrome keeps writing its profile for a moment after the kill; retry, and never fail a capture
-  // run over a temp folder the OS cleans up anyway.
+  // Bound shutdown when a temporary browser ignores SIGTERM, then remove its profile after exit.
+  // Retry profile cleanup without failing the capture over a folder the OS can clean up.
   const close = () => {
-    proc.kill();
-    try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch {}
+    const force = setTimeout(() => proc.kill("SIGKILL"), 2000);
+    force.unref();
+    const cleanup = () => {
+      clearTimeout(force);
+      try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch {}
+    };
+    if (proc.exitCode !== null || proc.signalCode !== null) cleanup();
+    else { proc.once("exit", cleanup); proc.kill(); }
   };
   return { send, once, close };
 }

@@ -23,14 +23,14 @@ Run the normal cut workflow from **New video** with your own recording. Once its
 
 ## Add captions, motion and B-roll
 
-1. Open a kept passage's **Captions & visuals**. Proofread **Caption text**, then enable **Show caption**. This displays one corrected caption for the whole passage, based on the available transcript. It is not word-timed karaoke.
+1. Open a kept passage's **Captions & visuals**. Proofread **Caption text**, then enable **Show caption**. This displays one corrected caption for the whole passage, based on the available transcript. Manual line breaks are retained, with additional wrapping where needed. It is not word-timed karaoke.
 2. Choose **Fade title** or **Fade lower third** and enter its text. These are original editable text-panel recipes with fade-in/out keyframes.
 3. Choose **Add B-roll** to copy a local video into durable library storage. Saved selections survive temporary-upload cleanup. Select it on a passage and set its in-point in seconds. The clip must cover the full passage from that point. B-roll replaces the picture while retaining source audio; its own audio is excluded.
 4. Save, build and watch the preview. It includes enabled captions, motion, B-roll and static zooms. **Download captions · SRT** exports the corrected passage timing.
 5. Approve and create the Resolve timeline. V1/A1 retain original source clips/audio, V2 contains ordinary prepared B-roll clips, V3 contains editable motion Text+ compositions, and V4 contains editable caption Text+ compositions.
 6. In Resolve, select a text clip and open Fusion. **GenMediaText** controls text/font/size/position; **GenMediaOutput** and **GenMediaOpacity** control the motion fade and keyframes. The blank timing carrier contains no baked text. Captions are Text+ clips, not a native Subtitle track.
 
-Browser previews are bounded to 1280 pixels. Native timelines/carriers preserve source resolution; B-roll is conformed to the source canvas and timeline FPS and can be relinked to its recorded original. Preview rasterization and Fusion are separate renderers, so font and fade appearance may differ slightly. Native controls take priority over pixel-identical handoff.
+Browser previews are bounded to 1280 pixels. Native timelines/carriers preserve source resolution and display orientation, including 90-degree phone rotation metadata; B-roll is conformed to the source canvas and timeline FPS and can be relinked to its recorded original. Preview rasterization and Fusion are separate renderers, so font and fade appearance may differ slightly. Native controls take priority over pixel-identical handoff.
 
 Visual direction and emphasis remain planning notes. Music, animated source zooms, semantic B-roll recommendations, advanced caption styles and hook recipes remain in the [maintained feature inventory](ai-edit-suite-coverage.md). Earlier source-only boards keep their old approval and default all new visuals off. Enabling or changing visuals requires a new preview approval.
 
@@ -53,3 +53,7 @@ Verified locally October 24, 2026 on free Resolve 21.1.1.10: sample v1 produced 
 Feedback should identify the board version/revision, the smallest affected passage and the expected result. Keep credentials and personal footage outside Git. Use the native-manifest and test evidence when diagnosing a failure rather than replaying uncertain actions.
 
 Visual follow-up acceptance: the eight-second synthetic visual sample rendered three captions, a title, a lower third and two seconds of B-roll. Board 6 corrected the first caption and replaced the B-roll/in-point, then created a new native timeline with six verified visual clips. The earlier timeline retained its manual Text+ edit. Resolve 21.1.1.10 requires a matching-format timeline template after Fusion graphics exist; a new format must use a fresh dedicated project. See [Resolve integration](resolve-integration.md) for the measured stall, workaround and recovery procedure. Production-footage readability, speech accuracy and creative quality still require real recordings.
+
+Reliability acceptance also covers a 360x640 portrait source stored as a rotated 640x360 video, manual caption line breaks and a four-frame graphic. Preview fade alpha now reaches zero on its last frame, matching the native fade endpoint. Text+ size is calibrated from preview pixel size and canvas aspect ratio; read back the native text and inspect its margins when adding another font or caption recipe. Existing approved bundles remain immutable; build and approve a new revision to use these layout fixes.
+
+The portrait follow-up included a saved correction and separate revised timeline; native readback confirmed the prior manual Text+ change was retained. These checks use the same workflow above, with original synthetic test media.

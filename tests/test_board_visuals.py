@@ -113,6 +113,47 @@ class BoardVisualTests(unittest.TestCase):
             self.assertGreater(pixel[0],pixel[2]+100,'The selected red footage must not be silently replaced by blue')
             self.mod.verify_bundle(path)
 
+    def test_fusion_font_size_matches_preview_pixels_across_aspect_ratios(self):
+        import re
+        # Native Text+ calibration: Size is based on width, with a 3/4 font scale.
+        for width,height,expected in [(640,360,.0375),(360,640,.1185185185)]:
+            comp=self.mod.fusion_comp('Layout calibration',60,width=width,height=height,size=.05)
+            actual=float(re.search(r'Size = Input \{ Value = ([0-9.e+-]+)',comp).group(1))
+            self.assertAlmostEqual(actual,expected,places=8)
+
+    def test_explicit_caption_line_breaks_survive_layout(self):
+        image,wrapped,size=self.mod._text_image('First line\nSecond line',640,360,'caption')
+        self.assertEqual(wrapped,'First line\nSecond line')
+
+    def test_motion_preview_fades_to_zero_on_its_last_frame(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp);source=path/'source.mp4'
+            subprocess.run(['ffmpeg','-v','error','-f','lavfi','-i','color=s=320x180:r=30',
+                '-frames:v','6','-c:v','libx264',str(source)],check=True)
+            row=self.mod.validate_row(dict(start_frame=0,end_frame=6,keep=True,zoom=1,motion='title',motion_text='Title'),[path])
+            bundle=self.mod.compile_bundle(path,[row],{'source':str(source),'fps':30})
+            movie=path/bundle['layers'][0]['preview_media']
+            alpha=subprocess.check_output(['ffmpeg','-v','error','-i',str(movie),'-vf','alphaextract','-f','rawvideo','-pix_fmt','gray','-'])
+            peaks=[max(alpha[i*57600:(i+1)*57600]) for i in range(6)]
+            self.assertEqual(peaks[0],0);self.assertGreater(peaks[2],0);self.assertEqual(peaks[-1],0)
+
+    def test_rotated_phone_video_uses_its_display_canvas(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp);raw=path/'landscape.mp4';source=path/'phone.mp4'
+            subprocess.run(['ffmpeg','-v','error','-f','lavfi','-i','testsrc2=s=640x360:r=30',
+                '-frames:v','6','-c:v','libx264',str(raw)],check=True)
+            subprocess.run(['ffmpeg','-v','error','-i',str(raw),'-c','copy','-metadata:s:v:0','rotate=90',str(source)],check=True)
+            data=json.loads(subprocess.check_output(['ffprobe','-v','error','-show_streams','-of','json',str(source)]))
+            if not any('rotation' in d for d in data['streams'][0].get('side_data_list',[])):
+                # FFmpeg 8 replaced the old output rotate metadata option with an input override.
+                subprocess.run(['ffmpeg','-v','error','-y','-display_rotation','90','-i',str(raw),'-c','copy',str(source)],check=True)
+            row=self.mod.validate_row(dict(start_frame=0,end_frame=6,keep=True,zoom=1,caption_enabled=True,caption='Phone video',broll=str(raw)),[path])
+            bundle=self.mod.compile_bundle(path,[row],{'source':str(source),'fps':30})
+            self.assertEqual((bundle['native_width'],bundle['native_height']),(360,640))
+            for layer in bundle['layers']:
+                info=self.mod.media_info(path/layer['media'])
+                self.assertEqual((info['width'],info['height']),(360,640))
+
     def test_bundle_tampering_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             path=Path(tmp);file=path/'caption.comp';file.write_text('original',encoding='utf-8')

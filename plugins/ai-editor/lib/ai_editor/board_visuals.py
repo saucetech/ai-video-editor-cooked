@@ -29,7 +29,10 @@ def media_info(path):
                             check=True, capture_output=True, text=True, timeout=30)
     data = json.loads(result.stdout)
     video = next(s for s in data['streams'] if s['codec_type'] == 'video')
-    return {'width': int(video['width']), 'height': int(video['height']),
+    width,height = int(video['width']),int(video['height'])
+    rotation = next((side['rotation'] for side in video.get('side_data_list',[]) if 'rotation' in side), video.get('tags',{}).get('rotate',0))
+    if round(float(rotation)) % 180 == 90:width,height=height,width
+    return {'width': width, 'height': height,
             'fps': float(Fraction(video['r_frame_rate'])),
             'duration': float(video.get('duration') or data['format']['duration'])}
 
@@ -105,7 +108,9 @@ def fusion_comp(text, frames, kind='caption', width=1920, height=1080, size=None
     """A fixed node graph; user text is only a quoted StyledText value, never code."""
     text = json.dumps(text, ensure_ascii=False)
     center = '.15' if kind == 'caption' else '.7' if kind == 'title' else '.31'
-    size = size or (.065 if kind == 'title' else .052)
+    # Text+ uses frame width and a 3/4 font scale; preview fonts use height pixels.
+    # Native calibration on Resolve 21.1.1: 18 px on 640x360 maps to Size 0.0375.
+    size = (size or (.065 if kind == 'title' else .052)) * height / width * 4 / 3
     ramp = max(1, min(8, frames // 3))
     end_ramp = max(ramp + 1, frames - ramp - 1)
     opacity = 'Value = 1' if kind == 'caption' or frames < 4 else 'SourceOp = "GenMediaOpacity", Source = "Value"'
@@ -153,12 +158,15 @@ def _text_image(text, width, height, kind):
     size = max(12, round(height * (.065 if kind == 'title' else .052)))
     while True:
         font = _font(size)
-        lines, line = [], ''
-        for word in text.split():
-            candidate = (line + ' ' + word).strip()
-            if draw.textlength(candidate, font=font) > width * .78 and line: lines.append(line); line = word
-            else: line = candidate
-        lines.append(line); wrapped = '\n'.join(lines)
+        lines = []
+        for paragraph in text.split('\n'):
+            line = ''
+            for word in paragraph.split():
+                candidate = (line + ' ' + word).strip()
+                if draw.textlength(candidate, font=font) > width * .78 and line: lines.append(line); line = word
+                else: line = candidate
+            lines.append(line)
+        wrapped = '\n'.join(lines)
         box = draw.multiline_textbbox((0, 0), wrapped, font=font, spacing=4, align='center')
         if (box[2] - box[0] <= width * .82 and box[3] - box[1] <= height * .17) or size <= max(10, height * .025): break
         size -= 1
@@ -173,7 +181,7 @@ def _text_image(text, width, height, kind):
 def compile_bundle(path, rows, report):
     import edit_board
     path = Path(path); info = media_info(report['source']); fps = float(report['fps'])
-    # Preview and native canvas share this bounded raster size; source clips remain original media.
+    # Preview is bounded; native canvas follows display orientation and original resolution.
     scale = min(1, 1280/max(info['width'],info['height']))
     width,height = [max(2, round(info[k]*scale/2)*2) for k in ('width','height')]
     rate = format(fps, '.10g'); events = cues(rows)
@@ -201,8 +209,9 @@ def compile_bundle(path, rows, report):
             image.save(png)
             filters='format=rgba'
             if kind!='caption' and duration>=4:
-                ramp=max(1,min(8,duration//3))/fps
-                filters+=f',fade=t=in:st=0:d={ramp}:alpha=1,fade=t=out:st={max(ramp,seconds-ramp)}:d={ramp}:alpha=1'
+                ramp=max(1,min(8,duration//3))
+                end_ramp=max(ramp+1,duration-ramp-1)
+                filters+=f',fade=t=in:st=0:d={ramp/fps}:alpha=1,fade=t=out:st={end_ramp/fps}:d={(duration-1-end_ramp)/fps}:alpha=1'
             edit_board.run_renderer(['ffmpeg','-v','error','-y','-loop','1','-framerate',rate,'-i',str(png),'-vf',filters,'-frames:v',str(duration),'-an','-c:v','prores_ks','-profile:v','4','-pix_fmt','yuva444p10le',str(movie)])
             carrier=folder/(stem+'-carrier.mov')
             edit_board.run_renderer(['ffmpeg','-v','error','-y','-f','lavfi','-i',f"color=c=black@0:s={info['width']}x{info['height']}:r={rate},format=rgba",'-frames:v',str(duration),'-an','-c:v','prores_ks','-profile:v','4','-pix_fmt','yuva444p10le',str(carrier)])
