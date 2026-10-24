@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""nextwork-editor: open the cooked. window, with Claude Code behind it. Stdlib only.
+"""nextwork-editor: open the GenMedia Editor window, with Claude Code behind it. Stdlib only.
 
     nextwork-editor                 open the window (the same address every time), with a listening Claude behind it
     nextwork-editor --window-only   open the window only, never start Claude
@@ -50,17 +50,17 @@ def launcher_text(os_name=None, launcher=PLUGIN / "lib" / "ai_editor" / "launche
     version there, so an update never leaves the command on old code. Windows keeps the path home.py refreshes."""
     os_name = os_name or platform.system()
     if os_name == "Windows":
-        return (f"@echo off\r\nrem nextwork-editor: opens cooked. {MARK}; remove with setup.py uninstall-launcher\r\n"
+        return (f"@echo off\r\nrem nextwork-editor: opens GenMedia Editor {MARK}; remove with setup.py uninstall-launcher\r\n"
                 f'set "L={launcher}"\r\nset "PY={py}"\r\nif not exist "%PY%" set "PY=py"\r\n'
-                'if not exist "%L%" (echo cooked. moved, maybe an update. In Claude Code, say: set up the editor. & exit /b 1)\r\n'
+                'if not exist "%L%" (echo GenMedia Editor moved, maybe an update. In Claude Code, say: set up the editor. & exit /b 1)\r\n'
                 '"%PY%" "%L%" %*\r\n')
     launcher = Path(launcher)
     versions = launcher.parents[3] if "/.claude/plugins/" in launcher.as_posix() else None
     newest = (f"N=$(\"$PY\" -c \"{NEWEST}\" {shlex.quote(versions.as_posix())} 2>/dev/null)\n"
               '[ -n "$N" ] && L="$N"\n') if versions else ""
-    return (f"#!/bin/sh\n# nextwork-editor: opens cooked. {MARK}; remove with setup.py uninstall-launcher\n"
+    return (f"#!/bin/sh\n# nextwork-editor: opens GenMedia Editor {MARK}; remove with setup.py uninstall-launcher\n"
             f"L={shlex.quote(str(launcher))}\nPY={shlex.quote(str(py))}\n[ -x \"$PY\" ] || PY=python3\n" + newest +
-            'if [ ! -f "$L" ]; then echo "cooked. moved, maybe an update. In Claude Code, say: set up the editor."; exit 1; fi\n'
+            'if [ ! -f "$L" ]; then echo "GenMedia Editor moved, maybe an update. In Claude Code, say: set up the editor."; exit 1; fi\n'
             'exec "$PY" "$L" "$@"\n')
 
 

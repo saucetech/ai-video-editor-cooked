@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>cooked.</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23121211'/%3E%3Cg transform='translate%2810 10%29 scale%28.6875%29' fill='%23F2F0EA' color='%23F2F0EA'%3E%3Cpath d='M6 36H46C46 46 40 52 32 52H20C12 52 6 46 6 36Z'/%3E%3Cpath d='M45 36H58A3 3 0 0 1 58 42H45Z'/%3E%3Cpath d='M16 29C13 25 19 22 16 17M26 29C23 25 29 22 26 17M36 29C33 25 39 22 36 17' fill='none' stroke='currentColor' stroke-width='5' stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E">
+<title>GenMedia Editor</title>
+<link rel="icon" href="/genmedia-icon.svg" type="image/svg+xml">
 <style>
 :root{--bg:#FAFAF9;--panel:#FFFFFF;--ink:#0C0A09;--t2:#57534E;--t3:#78716C;--t4:#A8A29E;--line:#E7E5E4;--soft:#F5F5F4;--ring:#D6D3D1;
   --onink:#FFFFFF;--ok:#16A34A;--page:#FFFFFF;--side:#F7F7F6;--card:#F2F1EF;--menu:#FFFFFF;--track:#E7E5E4;--act:#E9E8E6;--ract:#E2E1DE;--tile:#F6F5F3;--onok:#FFFFFF;--oktext:#15803D;--dotbg:#FFFFFFF0;--dotfg:#0C0A09;--skbg:#FFFFFF;--segon:#FFFFFF;--inbg:#FFFFFF;--mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color-scheme:light}
@@ -1004,14 +1004,15 @@ body:has(.smprow) .sb-smp{display:none}   /* the page offers the sample itself: 
 @media (max-width:1180px){.obk{flex-direction:column;align-items:stretch}.obk>*{flex:0 0 auto!important}.obwd{grid-template-columns:1fr 1fr}.obhome{grid-template-columns:1fr}}
 
 </style>
+<link rel="stylesheet" href="/genmedia.css">
 </head>
-<body>
+<body class="gm-home">
 <div class="app">
-<aside id="side" class="sbar"><div class="sb-brand"><button class="brand" data-home onclick="goHome()" title="Home"><span class="mark" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 64 64" fill="currentColor"><path d="M6 36H46C46 46 40 52 32 52H20C12 52 6 46 6 36Z"/><path d="M45 36H58A3 3 0 0 1 58 42H45Z"/><path d="M16 29C13 25 19 22 16 17M26 29C23 25 29 22 26 17M36 29C33 25 39 22 36 17" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/></svg></span><b>cooked.</b></button></div></aside>
+<aside id="side" class="sbar"><div class="sb-brand"><button class="brand" data-home onclick="goHome()" title="Home"><span class="mark" aria-hidden="true">g</span><b>GenMedia<small>Editor</small></b></button></div></aside>
 <div class="wrap">
 <header>
   <nav class="steps" id="steps"></nav>
-  <a href="/edit-board" style="color:inherit;white-space:nowrap;font-weight:600;text-decoration:none;padding:8px 12px;border:1px solid currentColor;border-radius:8px">Edit board</a>
+  <a class="board-link" href="/edit-board">Edit board</a>
   <div class="live" id="live"></div>
   <div class="bars" id="bars"></div>
 </header>
@@ -1062,7 +1063,7 @@ function goHome(){ui.ob=null;rgo('home')}
 // light or dark: the OS setting until the user picks; the pick is remembered in this browser (review page: the same)
 const MOON='<svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M13.5 9.6A5.8 5.8 0 0 1 6.4 2.5a5.8 5.8 0 1 0 7.1 7.1z"/></svg>';
 const SUN='<svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="3"/><path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3 3l1.1 1.1M11.9 11.9L13 13M3 13l1.1-1.1M11.9 4.1L13 3"/></svg>';
-const OS=matchMedia('(prefers-color-scheme: dark)'),isDark=()=>{const t=document.documentElement.dataset.theme;return t?t==='dark':OS.matches};
+const OS=matchMedia('(prefers-color-scheme: dark)'),isDark=()=>{const t=document.documentElement.dataset.theme;return t?t==='dark':true};
 let themeAt=0;   // a poll already in flight still carries the old theme: ignore the server's for 3 s after a click
 function toggleTheme(){const t=isDark()?'light':'dark';document.documentElement.dataset.theme=t;themeAt=Date.now();post('/theme',{theme:t});render()}
 // the theme is one setting ($AI_EDITOR_HOME/ui.json): a choice made on a review page shows here on the next poll
@@ -2134,7 +2135,7 @@ function obView(){
 }
 const obStep=(n,on,t,s)=>`<div class="obs"><span class="obn ${on?'on':''}">${n}</span><div><b>${t}</b><p>${s}</p></div></div>`;
 function obWelcome(){
-  return `<div class="pgc obw"><div class="ph"><h1>Welcome to cooked.</h1><p>Three steps to your first edit. Claude does the work. You check it.</p></div>
+  return `<div class="pgc obw"><div class="ph"><h1>Welcome to GenMedia Editor</h1><p>Connect your editing assistant, add a source, and review the result.</p></div>
     <div class="obl">${obStep(1,1,'Set up','Installs the free tools on this computer. Then two optional keys.')}${obStep(2,0,'Analyse a format','Paste 3 to 6 videos edited the same way. Claude writes down how they are edited.')}${obStep(3,0,'Make your first video','Drop a clip. Claude cuts the mistakes, then adds captions, zooms and sound in that style.')}</div>
     <div class="row" style="gap:24px;flex-wrap:wrap"><button class="b1" onclick="queue({type:'setup'})">Start setup</button><span class="t2" style="color:var(--t2);font-size:14px">Setup keeps going in the background while you do step 2.</span></div>${sampleRow()}</div>`;
 }
@@ -2300,7 +2301,6 @@ IC.skill='<path d="M13 3 5 13.5h6l-1 7.5 8-10.5h-6z"/>';
 Object.assign(IC,IC2);
 const ic=(k,px=18,sw=1.8)=>`<svg width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg>`;
 const DOTS='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg>';
-const PAN=px=>`<svg width="${px}" height="${px}" viewBox="0 0 64 64" fill="currentColor" aria-hidden="true"><path d="M6 36H46C46 46 40 52 32 52H20C12 52 6 46 6 36Z"/><path d="M45 36H58A3 3 0 0 1 58 42H45Z"/><path d="M16 29C13 25 19 22 16 17M26 29C23 25 29 22 26 17M36 29C33 25 39 22 36 17" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/></svg>`;
 const SPIN='<svg class="sring" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="var(--line)" stroke-width="3"/><path d="M12 3a9 9 0 0 1 9 9" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/></svg>';
 const SIL='<svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9" r="4.2" fill="#F5F5F4"/><path d="M3.5 24c0-5 3.8-8.2 8.5-8.2s8.5 3.2 8.5 8.2z" fill="#F5F5F4"/></svg>';
 let railPref=false;try{railPref=localStorage.getItem('ave-rail')==='1'}catch(e){}
@@ -2363,9 +2363,9 @@ function sideHTML(){
   const vgo="ui.fold.videos=null;rgo('videos')";
   if(rail){
     const it=(k,label,on,js,extra='')=>`<button class="rl-it ${on?'on':''}" onclick="${js}" ${extra}><span class="ic">${ic(k,20,1.9)}</span>${label}</button>`;
-    return `<button class="rl-pan" data-home onclick="goHome()" title="Home" aria-label="cooked. home">${PAN(24)}</button>${tog}
+    return `<button class="rl-pan" data-home onclick="goHome()" title="Home" aria-label="GenMedia Editor home">g</button>${tog}
       <button class="rl-it rl-new" onclick="rgo('new')"><span class="ic">${ic('plus',20,2.2)}</span>New</button><div style="height:10px;flex-shrink:0"></div>
-      ${it('home','Home',cur==='home','goHome()')}${it('videos','Videos',cur==='videos',vgo,dropAttrs('videos',null))}${it('styles','Styles',onS,"rgo('mystyle')")}${it('skill','Skills',cur==='skills',"rgo('skills')")}
+      ${it('home','Home',cur==='home','goHome()')}${it('videos','Videos',cur==='videos',vgo,dropAttrs('videos',null))}${it('styles','Styles',onS,"rgo('mystyle')")}${it('skill','Skills',cur==='skills',"rgo('skills')")}${it('videos','Edit board',false,"location.href='/edit-board'")}
       <div class="sb-sp"></div>
       ${ji?`<button class="rl-it rl-job" onclick="${ji.go}" title="${esc(ji.label+': '+ji.text)}"><span class="ic">${ringSvg(ji.frac)}${ji.n}</span>${ji.short}</button>`:''}
       ${it('upload',updLabel(true),false,"sbUpd()",updBusy()?'disabled':'')}${it('gear','Settings',cur==='settings',"rgo('settings')")}${thm}`;
@@ -2378,12 +2378,13 @@ function sideHTML(){
     const on=k==='videos'?cur==='videos'&&ui.fold.videos===f.id:cur==='mystyle'&&ui.fold.styles===f.id;
     return `<div class="sb-row sfold ${on?'on':''}" role="button" tabindex="0" onclick="openFold(${J(f.id)},'${k}')" onkeydown="if(event.key==='Enter'&&event.target===this)this.click()" ${dropAttrs(k,f.id)}>${ic(icn)}<span class="lb">${esc(f.name)}</span>${moreBtn(K,'More for this folder')}<span class="n hv">${cnt(k,f.id)}</span>${cMenu(K,[['Rename',`ui.renfold={kind:'${k}',id:${J(f.id)},val:${J(f.name)}};render();setTimeout(()=>{const e=$('#fold-name');if(e){e.focus();e.select()}},0)`,'pencil'],['Delete folder',`foldDel('${k}',${J(f.id)})`,'trash']])}</div>`};
   const nf=ui.newfold&&ui.newfold.at!=='head'?`<div class="sb-row">${ic(ui.newfold.kind==='videos'?'folder':'styles')}${inp(ui.newfold,'Folder name')}</div>${ui.newfold.msg?`<div class="msg bad" style="padding:0 12px;font-size:12px">${esc(ui.newfold.msg)}</div>`:''}`:'';
-  return `<div class="sb-brand"><button class="brand" data-home onclick="goHome()" title="Home"><span class="mark" aria-hidden="true">${PAN(18)}</span><b>cooked.</b></button>${tog}</div>
+  return `<div class="sb-brand"><button class="brand" data-home onclick="goHome()" title="Home"><span class="mark" aria-hidden="true">g</span><b>GenMedia<small>Editor</small></b></button>${tog}</div>
     <button class="sb-new" ${GS().setup?'':'disabled title="New video opens once setup is done"'} onclick="rgo('new')">${ic('plus',16,2.2)}New video</button>
     <nav class="sb-nav"><button class="sb-row ${cur==='home'?'on':''}" onclick="goHome()">${ic('home')}<span class="lb">Home</span></button>
       <button class="sb-row ${cur==='videos'&&!ui.fold.videos?'on':''}" onclick="${vgo}" ${dropAttrs('videos',null)}>${ic('videos')}<span class="lb">Your videos</span><span class="n">${vids.filter(v=>!inFold('videos',v.dir)).length}</span></button>
       <button class="sb-row ${onS?'on':''}" onclick="rgo('mystyle')">${ic('styles')}<span class="lb">Styles</span><span class="n">${st.filter(c=>!inFold('styles',c.id)).length}</span></button>
-      <button class="sb-row ${cur==='skills'?'on':''}" onclick="rgo('skills')">${ic('skill')}<span class="lb">Skills</span></button></nav>
+      <button class="sb-row ${cur==='skills'?'on':''}" onclick="rgo('skills')">${ic('skill')}<span class="lb">Skills</span></button>
+      <a class="sb-row sb-board" href="/edit-board"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M8 4v16M3 9h5m-5 6h5m4-3 2 2 4-4"/></svg><span class="lb">Edit board</span></a></nav>
     <div class="sb-fold"><div class="sb-fh">Folders<button class="sb-add" title="New folder" aria-label="New folder" onclick="newFolder(null,null,rv==='mystyle'||rv==='stylepage'?'styles':'videos')">${ic('plus',12,2.4)}</button></div>
       <div class="sb-flist">${fd('videos').folders.map(f=>frow('videos',f)).join('')}${fd('styles').folders.map(f=>frow('styles',f)).join('')}${nf}</div></div>
     <div class="sb-sp"></div>
@@ -2489,7 +2490,7 @@ function stHelp(k){
 }
 // ---- Settings: keys (each with its own status and a little of its brand colour), updates, the videos folder, the theme
 const KLT={elevenlabs:'var(--soft)',gemini:'color-mix(in srgb,#9168C0 14%,var(--skbg))'};
-const KDS={elevenlabs:'Exact words, so the cut finds your retakes',gemini:"Reads a creator's look when it analyses them",zernio:'Does the posting for cooked.'};
+const KDS={elevenlabs:'Exact words, so the cut finds your retakes',gemini:"Reads a creator's look when it analyses them",zernio:'Does the posting for GenMedia Editor'};
 const OKTICK=ic('check',14,2.6);
 function stKey(k){
   const st=S.keys[k.id]||{},u=ui.keys[k.id]||{},c=st.check,editing=u.edit||!st.set;
@@ -2520,7 +2521,7 @@ function stPost(){
   const con=st.set?`<div><div class="t2" style="margin-bottom:8px;white-space:normal">Connect an account. Press it again to add another one on the same app.</div><div class="lks" style="gap:8px;flex-wrap:wrap">${PCON.map(([p,n])=>`<button class="b2 s" ${ui.pbusy?'disabled':''} onclick="pConnect('${p}')">${LOGO_PATHS[p]?logo(p,14):''}${ui.pbusy===p?'Opening...':n}</button>`).join('')}<button class="ul q" onclick="loadAcc()">Refresh</button></div></div>`:'';
   const steps=st.set?'':`<div style="display:flex;flex-direction:column;gap:6px">${['Make a Zernio account. Zernio is the service that does the posting.','In Zernio, connect Instagram, TikTok, YouTube or any app you post to.','Copy your Zernio API key and paste it below.'].map((t,i)=>`<div class="row" style="gap:10px;align-items:baseline"><b style="width:14px;flex-shrink:0">${i+1}</b><span class="t2" style="white-space:normal">${t}</span></div>`).join('')}</div>`;
   return `<div class="scd" style="gap:16px"><div class="hd"><b>Auto-post your videos</b>${st.set&&ui.pacc&&!m?`<span class="ss">${A.length} account${A.length===1?'':'s'}</span>`:''}</div>
-    <div style="white-space:normal">Approve a video and cooked. posts it to your accounts for you. Now or at a time you pick. No uploading by hand.</div>
+    <div style="white-space:normal">Approve a video and GenMedia Editor posts it to your accounts for you. Now or at a time you pick. No uploading by hand.</div>
     ${steps}${stKey(ZK)}${list}${con}</div>`;
 }
 function stModal(){
@@ -2559,10 +2560,10 @@ async function sbUpd(){const u=S.update||{};if(u.newer&&!u.fork)return stDoUpdat
   const v=S.update||{};toast(v.newer?'Version '+v.latest+' is out.':v.offline?'Could not reach GitHub.':'Up to date. You have '+(v.installed||v.latest)+'.')}
 function updCard(){
   const u=S.update||{},j=latest('update'),busy=j&&j.state==='taken',done=j&&j.state==='done'&&Date.now()/1000-(j.finished||0)<300;
-  if(busy)return `<div class="sb-upd"><div><b>${SPIN}Updating cooked.</b><span>${esc(((j.steps||[]).at(-1)||{}).text||'Starting')}</span></div></div>`;
+  if(busy)return `<div class="sb-upd"><div><b>${SPIN}Updating GenMedia Editor</b><span>${esc(((j.steps||[]).at(-1)||{}).text||'Starting')}</span></div></div>`;
   if(done)return `<div class="sb-upd"><div><b>Updated${(j.result||{}).version?' to '+esc(j.result.version):''}</b><span>Type /reload-plugins in Claude Code to load it.</span></div></div>`;
   if(!u.newer||u.fork)return '';
-  return `<div class="sb-upd"><div><b>New version ${esc(u.latest)}</b><span>${esc((u.notes||[])[0]||'A new version of cooked. is out.')}</span></div><button class="sb-updb" onclick="stDoUpdate()">Update now</button></div>`;
+  return `<div class="sb-upd"><div><b>New version ${esc(u.latest)}</b><span>${esc((u.notes||[])[0]||'A new version of GenMedia Editor is out.')}</span></div><button class="sb-updb" onclick="stDoUpdate()">Update now</button></div>`;
 }
 async function stDoUpdate(){const r=await post('/job',{type:'update'});if(!r._ok)toast(r.error||'That did not start.');await load()}
 // Check now: the check runs on the server; the card follows it until it is done (GitHub can take a few seconds)
@@ -2737,7 +2738,7 @@ function render(){
   document.body.classList.toggle('rh',true);paintSide();
   if(!rv||rv==='making')rv=L.videos.length||firstRun()?'home':'new';
   rrender();
-  const ji=jobInfo(),tt=ji?`${ji.label} · cooked.`:'cooked.';if(document.title!==tt&&!document.documentElement.dataset.ask)document.title=tt;
+  const ji=jobInfo(),tt=ji?`${ji.label} · GenMedia Editor`:'GenMedia Editor';if(document.title!==tt&&!document.documentElement.dataset.ask)document.title=tt;
   if(keep){const e=document.getElementById(keep);if(e&&'value' in e&&!e.matches(':focus')){if(e.type!=='file')e.value=val;e.focus();try{e.setSelectionRange(pos,end??pos)}catch(x){}}}
 }
 setInterval(tickClocks,1000);

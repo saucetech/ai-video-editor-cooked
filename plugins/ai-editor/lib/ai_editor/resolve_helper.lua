@@ -132,7 +132,7 @@ end
 local generation=tostring(bmd.createuuid())
 local version=resolve:GetVersionString()
 local seen, readyAt, lastId = {}, 0, nil
-print('cooked Resolve bridge started. Leave this Console session running; run Stop connection from cooked to stop it.')
+print('GenMedia Resolve bridge started. Leave this Console session running; run Stop connection from GenMedia Editor to stop it.')
 while true do
   local now=clock()
   if math.floor(now)~=readyAt then
@@ -159,4 +159,4 @@ while true do
   bmd.wait(.03)
 end
 writefile('ready.json',encode({stopped_generation=generation}))
-print('cooked Resolve bridge stopped.')
+print('GenMedia Resolve bridge stopped.')

@@ -2,7 +2,7 @@
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  let state = null, dirty = false, busy = false, selected = '', watchEnd = null, polling = false;
+  let state = null, dirty = false, busy = false, selected = '', watchEnd = null, polling = false, activeRow = -1;
   const notice = (text, error = false) => { $('notice').textContent = text; $('notice').classList.toggle('error', error); };
   const time = seconds => `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(3).padStart(6, '0')}`;
   async function api(path, body) {
@@ -26,9 +26,11 @@
     $('watch').disabled = busy || !rev || rev.state !== 'ready';
     $('approve').disabled = busy || dirty || !current || rev.state !== 'ready' || state.approved_revision === selected;
     $('send-resolve').disabled = busy || dirty || !current || state.approved_revision !== selected || rev.native_state === 'sending' || rev.native_state === 'blocked';
-    $('send-resolve').textContent = rev?.native_state === 'ready' ? 'Timeline already created · show result' : 'Create Resolve timeline';
+    $('send-resolve').textContent = rev?.native_state === 'ready' ? 'View timeline details' : 'Create Resolve timeline';
+    $('resolve-status').textContent = rev?.native_state === 'ready' ? 'Timeline created. Open Resolve to continue finishing.' : state?.approved_revision === selected && selected ? 'Preview approved. Ready to create a separate timeline.' : 'Approve a preview to create its timeline.';
     for (const id of ['project','reload','sample','revision','setup-resolve','check-resolve']) $(id).disabled = busy;
     $('rows').querySelectorAll('input,textarea,select,button').forEach(el => { el.disabled = busy || (el.dataset.keep === 'true' && state.rows[Number(el.dataset.index)].protected); });
+    $('sequence').querySelectorAll('button').forEach(el => { el.disabled = busy; });
     $('save-state').textContent = dirty ? 'Unsaved changes · approval required again' : state ? `Board version ${state.version} · saved` : 'Choose a project';
     if (!state) return;
     const frames = state.rows.filter(r => r.keep).reduce((n,r) => n + r.end_frame - r.start_frame, 0);
@@ -38,42 +40,62 @@
     $('step-approve').className = state.approved_revision === selected && !dirty ? 'done' : '';
     $('step-resolve').className = rev?.native_state === 'ready' ? 'done' : '';
   }
-  function changed() { dirty = true; controls(); }
+  function changed(sequence = false) { dirty = true; if(sequence)drawSequence(); controls(); }
   function media(revision = '') {
     const q = new URLSearchParams({edit:state.edit}); if (revision) q.set('revision',revision);
     return '/board/media?' + q;
   }
   function node(tag, text, className) {const el = document.createElement(tag); if (text) el.textContent = text; if(className)el.className=className; return el;}
+  function watchSource(row, index) {
+    activeRow = index;
+    const player = $('player'); watchEnd = row.end_frame/state.fps; player.src=media();
+    player.onloadedmetadata = () => {player.currentTime=row.start_frame/state.fps;player.play().catch(()=>{});};
+    $('player-mode').textContent=`Source passage ${index+1}`;
+    $('rows').querySelectorAll('article').forEach((card,i)=>card.classList.toggle('current',i===index));
+    drawSequence(); controls();
+  }
+  function drawSequence() {
+    $('sequence').replaceChildren();
+    state.rows.forEach((row,index)=>{
+      const button=node('button',String(index+1).padStart(2,'0'));
+      button.type='button'; button.style.flexGrow=String(row.end_frame-row.start_frame);
+      button.setAttribute('aria-label',`Watch source passage ${index+1}: ${row.keep?'kept':'removed'}, ${time(row.start_frame/state.fps)} to ${time(row.end_frame/state.fps)}`);
+      button.setAttribute('aria-pressed',String(index===activeRow));
+      button.classList.toggle('omitted',!row.keep);button.classList.toggle('current',index===activeRow);
+      button.onclick=()=>watchSource(row,index);$('sequence').append(button);
+    });
+  }
   function drawRows() {
     $('rows').replaceChildren();
     state.rows.forEach((row, index) => {
       const card = node('article',null,'passage'), top = node('div',null,'passage-top');
-      const restyle = () => {card.classList.toggle('dropped',!row.keep);card.classList.toggle('protected',row.protected);}; restyle();
+      const restyle = () => {card.classList.toggle('dropped',!row.keep);card.classList.toggle('protected',row.protected);card.classList.toggle('current',index===activeRow);}; restyle();
       top.append(node('span',`${String(index+1).padStart(2,'0')}  ${time(row.start_frame/state.fps)} → ${time(row.end_frame/state.fps)}`,'timecode'));
       const play = node('button','Watch source','subtle'); play.type='button'; play.setAttribute('aria-label',`Watch source passage ${index+1}`);
-      play.onclick = () => {
-        const player = $('player'); watchEnd = row.end_frame/state.fps; player.src=media();
-        player.onloadedmetadata = () => {player.currentTime=row.start_frame/state.fps;player.play().catch(()=>{});};
-        $('player-mode').textContent='Source passage';
-      }; top.append(play); card.append(top,node('p',row.text || 'No transcript text for this source interval.','passage-text'));
+      play.onclick = () => watchSource(row,index); top.append(play); card.append(top,node('p',row.text || 'No transcript text for this source interval.','passage-text'));
       const toggles=node('div',null,'passage-controls');
       for(const [key,label] of [['keep','Keep passage'],['protected','Protect hold']]) {
         const wrap=node('label'), input=node('input'); input.type='checkbox';input.checked=row[key]; input.id=`${key}-${index}`;
         input.setAttribute('aria-label',`${label} ${index+1}`); input.dataset.index=String(index); if(key==='keep')input.dataset.keep='true';
-        input.onchange=()=>{row[key]=input.checked;if(key==='protected'&&input.checked){row.keep=true;card.querySelector('[data-keep]').checked=true;}restyle();changed();};
+        input.onchange=()=>{row[key]=input.checked;if(key==='protected'&&input.checked){row.keep=true;card.querySelector('[data-keep]').checked=true;}restyle();changed(true);};
         wrap.append(input,document.createTextNode(label));toggles.append(wrap);
       }
       card.append(toggles);
+      const details=node('details',null,'direction-details'), summary=node('summary');
+      const directionSummary=()=>{summary.textContent='Visual direction'+(row.zoom!==1?` · ${row.zoom.toFixed(2)}× zoom`:'')+([row.note,row.emphasis].some(Boolean)?' · notes':'');};
+      directionSummary();
+      details.append(summary);
       const fields=node('div',null,'row-fields');
       for(const [key,label,type] of [['note','Visual direction · planning note','textarea'],['emphasis','Emphasis text · planning note','input']]) {
         const wrap=node('label',label), input=node(type); if(type==='input')input.type='text';input.value=row[key];input.maxLength=key==='note'?4000:200;
-        input.setAttribute('aria-label',`${label} ${index+1}`);input.oninput=()=>{row[key]=input.value;changed();};wrap.append(input);fields.append(wrap);
+        input.setAttribute('aria-label',`${label} ${index+1}`);input.oninput=()=>{row[key]=input.value;directionSummary();changed();};wrap.append(input);fields.append(wrap);
       }
       const zoomLabel=node('label','Static zoom · in Resolve'), zoom=node('select'); zoom.setAttribute('aria-label',`Static zoom passage ${index+1}`);
       const scales=[1,1.1,1.2,1.35,1.5,2];if(!scales.includes(row.zoom))scales.push(row.zoom);
       scales.sort((a,b)=>a-b).forEach(n=>zoom.append(new Option(`${n.toFixed(2)}×`,String(n))));zoom.value=String(row.zoom);
-      zoom.onchange=()=>{row.zoom=Number(zoom.value);changed();};zoomLabel.append(zoom);fields.append(zoomLabel);card.append(fields);$('rows').append(card);
+      zoom.onchange=()=>{row.zoom=Number(zoom.value);directionSummary();changed();};zoomLabel.append(zoom);fields.append(zoomLabel);details.append(fields);card.append(details);$('rows').append(card);
     });
+    drawSequence();
   }
   function drawRevisions() {
     const options=$('revision');options.replaceChildren(new Option('Choose a preview',''));
@@ -84,7 +106,7 @@
     $('revision-info').textContent = rev ? rev.error || (rev.native_state==='blocked'?'Resolve outcome needs inspection. No automatic retry.':rev.native_result?.timeline_name || (rev.state==='rendering'?'Rendering the source cut…':`${rev.selected_frames} frames · ${rev.approved?'approved':'awaiting approval'}`)) : 'Build a preview after saving your choices.';
   }
   function display(next) {
-    state=next;dirty=false;selected='';$('workspace').hidden=false;$('empty').hidden=true;
+    state=next;dirty=false;selected='';activeRow=-1;$('workspace').hidden=false;$('empty').hidden=true;
     if (window.history) { const url=new URL(location.href);url.searchParams.set('edit',state.edit);url.searchParams.delete('t');window.history.replaceState({},'',url); }
     $('project-name').textContent=state.name;$('sample-note').hidden=!state.sample;
     $('player').onloadedmetadata=null;$('player').src=media();watchEnd=null;$('player-mode').textContent='Original source';

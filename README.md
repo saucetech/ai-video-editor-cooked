@@ -1,6 +1,10 @@
-<img src="docs/logo.svg" width="64" height="64" alt="">
+<img src="plugins/ai-editor/lib/ai_editor/genmedia-icon.svg" width="64" height="64" alt="">
 
-# cooked.
+# GenMedia Editor
+
+A personal editing workspace with an Apple-inspired dark Liquid Glass interface, reviewable source decisions, and native Resolve finishing. Built on the MIT-licensed [NextWork cooked editor](https://github.com/nextwork-projects/ai-video-editor-cooked).
+
+See [the interface direction and verification process](docs/design/genmedia-editor-direction.md).
 
 ## This fork: Codex, Resolve and Higgsfield
 
@@ -24,7 +28,7 @@ explicitly through **Use Claude** when Codex is disconnected.
 
 Open **Resolve & Higgsfield** in the same panel for connection checks and actions:
 
-- **Resolve:** create a separate native timeline from a cooked source cut, or update managed zooms.
+- **Resolve:** create a separate native timeline from an approved source cut, or update managed zooms.
   The adapter detects manual changes before updating. Structural recuts need a new timeline;
   graphics and captions are not claimed as native Fusion controls. On macOS, use **Set up local Resolve connection** and paste its command into
   **Workspace → Console** once per Resolve session. This Lua route was verified on free Resolve 21.1.1,
@@ -33,7 +37,7 @@ Open **Resolve & Higgsfield** in the same panel for connection checks and action
   get a text-only credit quote and separately confirm a generation. Connection checks and quotes do
   not generate assets. Quotes expire and can be submitted only once. See [Higgsfield integration](docs/higgsfield-integration.md).
 
-Open **Edit board** in the home header to review a source cut or try the built-in synthetic sample.
+Open **Edit board** in the library sidebar to review a source cut or try the built-in synthetic sample.
 Keep/restore source passages, protect a demonstration hold, save visual direction and preview an
 immutable revision before approving its Resolve timeline. Each revision creates a separate timeline
 so earlier manual finishing remains available. Notes/emphasis are planning annotations; this release

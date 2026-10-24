@@ -19,7 +19,7 @@ from pathlib import Path
 MANIFEST = 'resolve-manifest.json'
 RESOLVE_PYTHON = '/Applications/DaVinci Resolve/DaVinci Resolve.app/Contents/Applications/ResolvePython'
 PREFIX = 'COOKED_RESOLVE_JSON:'
-DIAGNOSTIC = ('Open Resolve and a dedicated project. Set up the local connection in cooked, then paste its '
+DIAGNOSTIC = ('Open Resolve and a dedicated project. Set up the local connection in GenMedia Editor, then paste its '
               'dofile command into Workspace > Console once per Resolve session. '
               'Free Resolve 21.1 may omit Python scripts and not execute menu scripts. '
               'Resolve Studio can alternatively use Preferences > System > General > External scripting: Local. '
@@ -262,7 +262,7 @@ class ResolveBridge:
         current = project.GetCurrentTimeline()
         timeline = None
         try:
-            timeline = _require(pool.CreateEmptyTimeline(name or 'cooked. ' + edit.name), 'Resolve could not create a new timeline.')
+            timeline = _require(pool.CreateEmptyTimeline(name or 'GenMedia ' + edit.name), 'Resolve could not create a new timeline.')
             manifest = dict(data, schema=1, state='incomplete', project_id=project.GetUniqueId(),
                             timeline_id=timeline.GetUniqueId(), timeline_name=timeline.GetName())
             _write(path, manifest)  # interruption is visible; never blindly replay a mutation

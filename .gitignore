@@ -15,3 +15,6 @@ eval-results/
 /*.MOV
 .claude/settings.local.json
 .context/
+
+# Local design review captures; maintained tokens remain versioned.
+/.impeccable/review/

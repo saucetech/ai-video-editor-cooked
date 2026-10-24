@@ -3174,8 +3174,8 @@ def demo():
         except urllib.error.HTTPError as e:
             assert e.code == 403, (p, e.code)
     r = urllib.request.urlopen(base + "/?t=" + tok)
-    page = r.read()   # the brand: pan tile, "cooked." and the pan favicon
-    assert b'class="mark"' in page and b"<b>cooked.</b>" in page and b'rel="icon" href="data:image/svg+xml' in page, "brand"
+    page = r.read()   # GenMedia wordmark and locally served identity assets
+    assert b'class="mark"' in page and b"<b>GenMedia<small>Editor</small></b>" in page and b'rel="icon" href="/genmedia-icon.svg"' in page, "brand"
     assert "SameSite=Strict" in r.headers["Set-Cookie"]
     # one theme for the window and every review page: saved in $AI_EDITOR_HOME/ui.json, on <html> before first paint
     assert get("/state")["theme"] == "system" and b"<html data-theme" not in urllib.request.urlopen(base + "/?t=" + tok).read()

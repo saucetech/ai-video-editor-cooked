@@ -5,7 +5,7 @@ import vm from 'node:vm';
 
 const ids = new Map(), nodes = [];
 class Element {
-  constructor(tag='div') {this.tagName=tag.toUpperCase();this.children=[];this.dataset={};this.value='';this.classList={toggle(){}};nodes.push(this);}
+  constructor(tag='div') {this.tagName=tag.toUpperCase();this.children=[];this.dataset={};this.style={};this.value='';this.classList={toggle(){}};nodes.push(this);}
   set id(id){this._id=id;ids.set(id,this);} get id(){return this._id;}
   append(...children){this.children.push(...children);}
   replaceChildren(...children){this.children=[...children];}
@@ -35,6 +35,16 @@ const context=vm.createContext({document,fetch,URLSearchParams,URL,location:{sea
 vm.runInContext(fs.readFileSync(new URL('../plugins/ai-editor/lib/ai_editor/edit-board.js',import.meta.url),'utf8'),context);
 const settle=async()=>{for(let i=0;i<6;i++)await new Promise(resolve=>setImmediate(resolve));};
 await settle();
+// The source strip is actionable, and source playback stops at the passage boundary.
+const sourceButton=ids.get('sequence').children[0];
+sourceButton.onclick();
+assert.equal(ids.get('player-mode').textContent,'Source passage 1');
+ids.get('player').play=async()=>{};
+ids.get('player').onloadedmetadata();
+assert.equal(ids.get('player').currentTime,0);
+let paused=false;ids.get('player').pause=()=>{paused=true;};
+ids.get('player').currentTime=4;ids.get('player').ontimeupdate();
+assert.equal(paused,true,'Source passage playback must stop at its end');
 await ids.get('approve').onclick();await settle();
 const note=nodes.filter(e=>e['aria-label']==='Visual direction · planning note 1').at(-1);
 note.value='Keep this correction after approval';note.oninput();

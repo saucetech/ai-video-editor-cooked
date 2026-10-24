@@ -59,6 +59,20 @@ class EditBoardHTTPTests(unittest.TestCase):
         self.assertEqual(status, 400)
         self.assertIn('library', json.loads(raw)['error'])
 
+    def test_identity_assets_are_served_with_types_and_theme_is_shared(self):
+        import review
+        review.set_theme('light')
+        status, _, raw = self.request('GET', '/edit-board')
+        self.assertEqual(status, 200)
+        self.assertIn(b'data-theme="light"', raw)
+        self.assertIn(b'GenMedia Editor', raw)
+        for path, content_type in [('/genmedia.css', 'text/css'), ('/genmedia-icon.svg', 'image/svg+xml')]:
+            status, headers, raw = self.request('GET', path)
+            self.assertEqual(status, 200)
+            self.assertTrue(headers['Content-Type'].startswith(content_type))
+            self.assertTrue(raw)
+            self.assertEqual(self.request('GET', path, auth=False)[0], 403)
+
     def test_media_range_only_serves_selected_source_or_known_revision(self):
         edit = self.root / 'edits/cut'; edit.mkdir(parents=True)
         src = edit / 'source.mp4'; src.write_bytes(b'0123456789')

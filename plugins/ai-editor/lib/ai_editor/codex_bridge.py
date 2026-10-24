@@ -17,7 +17,7 @@ from pathlib import Path
 
 QUESTION_TOOL = {
     "type": "function", "name": "editor_question",
-    "description": "Ask the user a question in the cooked browser window. Use for choices and review approval; never ask for credentials.",
+    "description": "Ask the user a question in the GenMedia Editor browser window. Use for choices and review approval; never ask for credentials.",
     "inputSchema": {"type": "object", "properties": {
         "question": {"type": "string"}, "options": {"type": "array", "items": {"type": "string"}}},
         "required": ["question"], "additionalProperties": False}}
@@ -85,7 +85,7 @@ class Bridge:
                                                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                                                 text=True, encoding="utf-8", bufsize=1)
                 threading.Thread(target=self._read, args=(self.process, generation), daemon=True).start()
-                self._rpc("initialize", {"clientInfo": {"name": "cooked_local_editor", "title": "cooked.", "version": "0.1.0"},
+                self._rpc("initialize", {"clientInfo": {"name": "cooked_local_editor", "title": "GenMedia Editor", "version": "0.1.0"},
                                          "capabilities": {"experimentalApi": True}})
                 self._send({"method": "initialized", "params": {}})
                 self._check_account()
@@ -111,7 +111,7 @@ class Bridge:
             self._status, self._login_url = "signing_in", login.get("authUrl")
 
     def _instructions(self):
-        return f"""You are the editing agent for the local cooked. browser app. The user controls this turn from that app.
+        return f"""You are the editing agent for the local GenMedia Editor browser app. The user controls this turn from that app.
 Full plugin source: {self.plugin}. Creator teardown plugin: {self.plugin.parent / 'creator-teardown'}.
 Library: {self.library}. Editor runtime: {self.runtime}.
 Read each relevant skills/<name>/SKILL.md before doing its work. In skill instructions replace

@@ -9,8 +9,9 @@ PATHS = {"/codex/state", "/codex/connect", "/codex/disconnect", "/codex/message"
 
 
 def route(handler, method, path, body=None, home_module=None):
-    if path in ("/codex.js", "/integrations.js") and method == "GET":
-        handler.send(200, Path(__file__).with_name(path[1:]).read_bytes(), "text/javascript; charset=utf-8")
+    if path in ("/codex.js", "/integrations.js", "/genmedia.css", "/genmedia-icon.svg") and method == "GET":
+        content_type = "text/css; charset=utf-8" if path.endswith(".css") else "image/svg+xml" if path.endswith(".svg") else "text/javascript; charset=utf-8"
+        handler.send(200, Path(__file__).with_name(path[1:]).read_bytes(), content_type)
         return True
     import integrations_http
     if path not in PATHS and path not in integrations_http.PATHS:
@@ -25,7 +26,7 @@ def route(handler, method, path, body=None, home_module=None):
         import home
         url = home.running()
         if not url or urlsplit(url).hostname != "127.0.0.1":
-            handler.send(503, {"error": "Open the cooked home page to reconnect Codex."})
+            handler.send(503, {"error": "Open the GenMedia Editor home page to reconnect Codex."})
             return True
         base, query = url.split("?", 1)
         request = urllib.request.Request(base.rstrip("/") + path + "?" + query,

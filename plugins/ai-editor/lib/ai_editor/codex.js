@@ -22,7 +22,10 @@
   <div id="codex-messages" aria-label="Codex messages"></div><div id="codex-pending"></div>
   <form id="codex-form"><label for="codex-input">Ask Codex about this edit</label><textarea id="codex-input" placeholder="Describe the edit or change you want…"></textarea>
   <div class="cx-row"><button id="codex-send" type="submit">Send</button><button id="codex-stop" type="button">Stop</button><button id="codex-disconnect" type="button">Disconnect</button></div></form>`;
-  document.body.append(toggle, panel);
+  const reviewHeader = document.querySelector('.gm-review header');
+  if (reviewHeader) reviewHeader.insertBefore(toggle, document.getElementById('mapprove'));
+  else document.body.append(toggle);
+  document.body.append(panel);
   let state = null, polling = false, pendingId = '', sending = false;
   const el = id => document.getElementById(id);
   const show = open => { panel.hidden = !open; if(open)panel.scrollTop=0; toggle.setAttribute('aria-expanded', String(open)); };

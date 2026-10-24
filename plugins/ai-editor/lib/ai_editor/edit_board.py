@@ -316,7 +316,7 @@ def send_to_resolve(edit, revision_id, expected_version):
         if not status.get('connected'): raise ValueError(status.get('message') or 'Connect Resolve first.')
         rev['native_state'] = 'sending'; write(path / 'revision.json', rev)
         try:
-            result = resolve.create_timeline(path, name=f'cooked {edit.name[:50]} · board {board["version"]} · {revision_id[:6]}')
+            result = resolve.create_timeline(path, name=f'GenMedia {edit.name[:50]} · board {board["version"]} · {revision_id[:6]}')
             rev.update(native_state='ready' if result.get('ok') else 'blocked', native_result=result)
             write(path / 'revision.json', rev)
         except Exception:

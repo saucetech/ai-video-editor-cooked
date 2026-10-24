@@ -49,7 +49,11 @@ def route(handler, method, path, body, home):
     try:
         if path in ASSETS and method == 'GET':
             file, content_type = ASSETS[path]
-            handler.send(200, (HERE / file).read_bytes(), content_type, cookie=path == '/edit-board')
+            data = (HERE / file).read_bytes()
+            if path == '/edit-board':
+                import review
+                data = review.themed(data)
+            handler.send(200, data, content_type, cookie=path == '/edit-board')
             return True
         if path == '/board/projects' and method == 'GET':
             handler.send(200, {'edits': integrations_http.edits(home)})

@@ -1386,7 +1386,7 @@ def resume_text(folder, d):
     """The page's Copy for Claude: everything a new Claude Code session needs to pick this edit up when the
     one that made it is closed (left overnight) or stopped answering."""
     doc = Path(__file__).resolve().parents[2] / "skills" / "style-edit" / "references" / "review.md"
-    return (f'Pick up my cooked. edit "{d.get("name") or folder.name}" where I left it '
+    return (f'Pick up my GenMedia Editor edit "{d.get("name") or folder.name}" where I left it '
             f'({stage_name(d.get("stage"), d.get("stills"))}, round {d.get("round")}).\n'
             f"Read {doc}, then run this in the background and apply the notes it prints:\n"
             f'python3 "{Path(__file__).resolve()}" "{folder.resolve()}" wait')
