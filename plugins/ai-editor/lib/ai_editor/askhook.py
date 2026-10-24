@@ -123,7 +123,7 @@ def pages():
 
 def session():
     """The Claude Code session this process runs in (Bash commands Claude runs carry it), or ""."""
-    return os.environ.get("CLAUDE_CODE_SESSION_ID", "").strip()
+    return (os.environ.get("AI_EDITOR_SESSION_ID") or os.environ.get("CLAUDE_CODE_SESSION_ID", "")).strip()
 
 
 def register(srv, url, kind=None, owner=None, where=None, folder=None):

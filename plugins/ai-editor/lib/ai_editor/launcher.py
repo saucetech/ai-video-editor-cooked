@@ -229,7 +229,11 @@ CONNECTED = {"listening": "Claude is already listening.", "pending": "Claude is 
 
 def main(argv=None):
     a = list(sys.argv[1:] if argv is None else argv)
-    dry, window_only = "--dry-run" in a, "--window-only" in a
+    try:
+        backend = home.load(home.state_path()).get("agent_backend")
+    except (OSError, ValueError):
+        backend = None
+    dry, window_only = "--dry-run" in a, "--window-only" in a or backend == "codex"
     os_name = a[a.index("--os") + 1] if "--os" in a else platform.system()
     lib = library.path(make=not dry)
     url = home.running()

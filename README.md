@@ -2,6 +2,39 @@
 
 # cooked.
 
+## This fork: Codex, Resolve and Higgsfield
+
+This fork adds a **Connect Codex** panel to the home and video review pages. It uses the installed
+Codex CLI and its existing **ChatGPT sign-in**. The app does not copy OAuth tokens, require an
+Anthropic account, or fall back to API-key billing. Codex plan usage and limits still apply.
+
+After installing the local tools with the setup instructions below:
+
+```sh
+codex login
+nextwork-editor --window-only
+```
+
+If Codex is already signed in, skip `codex login`. Open **Connect Codex**, then press **Connect Codex**
+in the panel. Ask for an edit there, or use the normal video/style controls. The panel shows progress,
+answers and questions; command permissions require **Allow once** or **Deny**. **Stop** interrupts
+the current turn. **Disconnect** closes only this app's worker and keeps your Codex login. After you
+choose Codex, `nextwork-editor` reopens the window without starting Claude. Claude remains available
+explicitly through **Use Claude** when Codex is disconnected.
+
+Open **Resolve & Higgsfield** in the same panel for connection checks and actions:
+
+- **Resolve:** create a separate native timeline from a cooked source cut, or update managed zooms.
+  The adapter detects manual changes before updating. Structural recuts need a new timeline;
+  graphics and captions are not claimed as native Fusion controls. The local helper script supports
+  an internal connection when external scripting is unavailable. See [Resolve integration](docs/resolve-integration.md).
+- **Higgsfield:** list current results, explicitly import completed media into the library, load models,
+  get a text-only credit quote and separately confirm a generation. Connection checks and quotes do
+  not generate assets. Quotes expire and can be submitted only once. See [Higgsfield integration](docs/higgsfield-integration.md).
+
+The original project's documentation follows. Its Claude-specific launcher and plugin instructions
+are an alternative to this fork's Codex connection.
+
 cooked. edits your talking-head video for you. You give it two things:
 
 Full setup guide [here](https://nextwork.ai/projects/5610da9c-bb29-42b6-a4a4-e30420ec671d?utm_source=github&utm_medium=nextwork-projects&utm_campaign=profile&utm_content=ai-video-editor-cooked)! 

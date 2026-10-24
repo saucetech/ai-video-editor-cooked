@@ -1095,6 +1095,16 @@ def reopen(folder, rj, force=False):
     Only with neither, a new Claude (`/ai-editor:start carry on edits/<name>`, in the library). Never while a `wait`
     listens; force (the page's "Open a new Claude") also when a Claude worked here lately, since it may have stopped.
     Kept on review.json as "claude": {opened, how, command, session, at} so the page says where it went."""
+    import home
+    try:
+        backend = home.load(home.state_path()).get("agent_backend")
+    except (OSError, ValueError):
+        backend = None
+    if load(rj).get("agent_backend") == "codex" or backend == "codex":
+        from codex_jobs import queue_review
+        r = queue_review(folder, rj)
+        update(rj, lambda d: d.update(claude=r, agent_backend="codex"))
+        return r
     if listening(folder) or not force and (busy(folder) or time.time() - ((load(rj).get("claude") or {}).get("at") or 0) < REOPEN_S):
         return None
     import launcher
@@ -1461,12 +1471,23 @@ def make_handler(folder, token):
             q = {k: v[0] for k, v in parse_qs(urlsplit(self.path).query).items()}
             if askhook.route(self, "GET", path, q):   # Claude's questions (askhook.py)
                 return
+            import codex_http
+            if codex_http.route(self, "GET", path):
+                return
             if path == "/":
                 return self.send(200, themed(HTML.read_bytes()), "text/html; charset=utf-8", cookie=True)
             if path == "/state":
                 d = load(rj)
+                if not d.get("agent_backend"):
+                    try:
+                        import home
+                        d["agent_backend"] = home.load(home.state_path()).get("agent_backend")
+                    except (OSError, ValueError):
+                        pass
                 d["theme"] = theme()
                 d["listening"], d["busy"] = listening(folder), busy(folder)
+                if d.get("agent_backend") == "codex":
+                    d["busy"] = any(job_edit(j) == folder.resolve() for j in taken_jobs())
                 d["resume"] = resume_text(folder, d)
                 ovf = folder / "overrides.json"   # sounds taken out of the plan, waiting for the next draft
                 d["sfx_removed"] = [float(k) for k, v in ((load(ovf).get("sfx") or {}) if ovf.exists() else {}).items()
@@ -1593,6 +1614,9 @@ def make_handler(folder, token):
                 return self.send(400, {"error": "not json"})
             path = urlsplit(self.path).path
             if askhook.route(self, "POST", path, {}, body):
+                return
+            import codex_http
+            if codex_http.route(self, "POST", path, body):
                 return
             if path == "/theme":   # the toggle: one choice for the window and every review page
                 try:
@@ -1885,6 +1909,10 @@ def make_handler(folder, token):
                     return self.send(409, {"error": "The cut is not ready yet."})
                 if body["type"] == "stop":   # the round's notes open again; `status` tells Claude to stop
                     err = stop_round(folder)
+                    if not err and load(rj).get("agent_backend") == "codex":
+                        import codex_http
+                        codex_http.route(self, "POST", "/codex/cancel", {"edit": str(folder)})
+                        return
                     return self.send(409, {"error": err}) if err else self.send(200, {})
                 style = style_label(folder) if body["type"] == "approve" else None
                 choices = style_choices(folder) if body["type"] == "approve" else None
@@ -3979,19 +4007,22 @@ def demo():
     # the footer after a pick-up: an approve says approved, a send says Claude is working (node runs the page's own function)
     page = HTML.read_text(encoding="utf-8")
     js = re.search(r"^function listenText\(S\)\{.*?\n\}", page, re.M | re.S)
+    provider = re.search(r"^function listenProviderText\(S\)\{.*?\n\}", page, re.M | re.S)
     alive = re.search(r"^function alive\(S\)\{.*?\}$", page, re.M)
-    assert js and alive, "review.html has no listenText() or alive()"
+    assert js and provider and alive, "review.html has no listenText(), listenProviderText() or alive()"
     if shutil.which("node"):
         ev = lambda t, n: {"listening": False, "sent": True, "round": n, "comments": [],
                            "events": [{"type": t, "stage": "edit", "handled": True}]}
         mid = {"listening": False, "busy": True, "sent": False, "round": 1, "stage": "edit", "comments": [], "events": []}
         nc = re.search(r"^const newClaude=.*$", page, re.M).group(0)   # notes sent, a new Claude opened
         fresh = dict(ev("send", 1), events=[{"type": "send", "stage": "edit", "handled": False}], claude={"opened": True, "at": time.time()})
-        o = subprocess.run(["node", "-e", nc + alive.group(0) + js.group(0) + "for(const s of " + json.dumps(
-                            [ev("approve", 0), {**ev("send", 1), "busy": True}, mid, fresh, ev("send", 1)])
+        o = subprocess.run(["node", "-e", nc + alive.group(0) + provider.group(0) + js.group(0) + "for(const s of " + json.dumps(
+                            [ev("approve", 0), {**ev("send", 1), "busy": True}, mid, fresh, ev("send", 1),
+                             {**ev("send", 1), "busy": True, "agent_backend": "codex"}])
                             + ")console.log(listenText(s))"], capture_output=True, text=True, check=True).stdout
         assert o.splitlines() == ["Approved", "Claude is working on the next draft", "Claude is working.",
-                                  "A new Claude is starting in its own Terminal window", "Claude stopped. Your notes are saved."], o
+                                  "A new Claude is starting in its own Terminal window", "Claude stopped. Your notes are saved.",
+                                  "Codex is working on the next draft"], o
     # approve on the cut: the style-edit's scripts fill the page's "Making the edit" steps, in place, never twice
     sf = tmp / "edits" / "steps"
     sf.mkdir(parents=True)

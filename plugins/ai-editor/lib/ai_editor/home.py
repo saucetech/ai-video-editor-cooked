@@ -1532,6 +1532,23 @@ def modal_state():
 
 
 _SRV = []   # the running window server, for the restart onto a new version
+_CODEX = []  # owned by this home server, never a user's other Codex sessions
+_CODEX_LOCK = threading.Lock()
+
+
+def codex_jobs():
+    with _CODEX_LOCK:
+        if not _CODEX:
+            import atexit
+            from codex_jobs import Jobs
+            _CODEX.append(Jobs(sys.modules[__name__]))
+            atexit.register(_CODEX[0].close)
+    return _CODEX[0]
+
+
+def update_review_provider(path, provider):
+    from review import update as change
+    change(path, lambda d: d.update(agent_backend=provider))
 
 
 def run_home(kind, jid):
@@ -1728,6 +1745,8 @@ def claude_for(jid):
     """A new terminal with a Claude that takes video job jid only ("take job <id>", `wait --job`): reserved first, so
     the listening Claude leaves it alone. {opened, command} (also kept on the job as "claude", so the page shows it, or
     the command to run where no terminal opened), or None when the job is not queued any more."""
+    if read().get("agent_backend") == "codex":
+        return {"opened": True, "backend": "codex", "command": ""}
     def reserve(d):
         j = next((j for j in d["jobs"] if j["id"] == jid and j["state"] == "queued"), None)
         if j:
@@ -1899,6 +1918,11 @@ def cmd_status(a):
         t = time.time()
         d["claude_seen"], d["claude_v"] = t, my_version()   # the page's heartbeat: Claude (or a script it runs) is still at work
         sid = askhook.session()
+        if sid.startswith("codex-"):
+            assigned = os.environ.get("AI_EDITOR_JOB_ID", "")
+            target = next((j for j in d["jobs"] if j["id"] == assigned), None)
+            if not target or target.get("owner") != sid or target["state"] != "taken":
+                return None  # a delayed script must never resurrect a cancelled or completed Codex job
         if if_active:   # a script's own report (progress.py): only onto a taken job of this session, never makes or takes one
             j = mine(d, a.job, getattr(a, "key", None), sid)
             if not j:
@@ -2012,6 +2036,9 @@ def make_handler(token):
             path = unquote(urlsplit(self.path).path)
             if askhook.route(self, "GET", path, {k: v[0] for k, v in parse_qs(urlsplit(self.path).query).items()}):   # Claude's questions
                 return
+            import codex_http
+            if codex_http.route(self, "GET", path, home_module=sys.modules[__name__]):
+                return
             if path == "/":
                 return self.send(200, themed(HTML.read_bytes()), "text/html; charset=utf-8", cookie=True)
             if path == "/post/accounts":   # Settings, Auto-post your videos: asked when the card opens and on return from a sign-in, never per poll
@@ -2024,6 +2051,8 @@ def make_handler(token):
             if path == "/state":
                 d = read()
                 d["listening"], d["keys"], d["theme"] = listening(), key_rows(d), theme()
+                if d.get("agent_backend") == "codex" and _CODEX:
+                    d["listening"] = _CODEX[0].bridge.snapshot()["status"] in ("connected", "working", "waiting")
                 d["modal"] = modal_state()
                 d.pop("keychecks", None)
                 bz = busy_with(d, listener())   # the listening Claude is making a video: the next one can get its own
@@ -2208,6 +2237,9 @@ def make_handler(token):
             except ValueError:
                 return self.send(400, {"error": "not json"})
             if askhook.route(self, "POST", path, {}, body):
+                return
+            import codex_http
+            if codex_http.route(self, "POST", path, body, home_module=sys.modules[__name__]):
                 return
             if path == "/post/connect":   # one more account: Zernio's sign-in opens in a new tab, Settings re-lists on return
                 try:
@@ -2522,6 +2554,9 @@ def make_handler(token):
             if path == "/sample":   # "Try it with a sample video"
                 return self.sample()
             if path == "/connect":   # "Connect Claude": a new terminal with a listening Claude, one at a time
+                if _CODEX and _CODEX[0].bridge.snapshot()["status"] in ("connected", "working", "waiting"):
+                    return self.send(409, {"error": "Disconnect Codex before starting a Claude listener."})
+                update(lambda d: d.update(agent_backend="claude"))
                 import launcher
                 st, cmd = launcher.connect(read()["root"])
                 return self.send(200, {"status": st, "command": cmd})
@@ -2531,6 +2566,8 @@ def make_handler(token):
                     return self.send(400, {"ok": False, "msg": "That is not one of your videos."})
                 import review
                 err = review.stop_round(e)   # the same Stop as the review page's: notes open again, Claude stops
+                if _CODEX:
+                    _CODEX[0].cancel(edit=e)
                 return self.send(409 if err else 200, {"ok": not err, "stopped": not err, **({"msg": err} if err else {})})
             if path == "/stop":   # {id}: the sidebar's Stop. The job ends, and its Claude stops at its next step (toolhook)
                 def st(d):
@@ -2540,6 +2577,8 @@ def make_handler(token):
                         return j.get("owner")
                     return None
                 owner = update(st)
+                if _CODEX:
+                    _CODEX[0].cancel(jid=body.get("id"))
                 if owner and owner != "home":
                     f = stop_file(owner)
                     f.parent.mkdir(parents=True, exist_ok=True)

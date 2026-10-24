@@ -1162,7 +1162,7 @@ function copyText(t,el){try{navigator.clipboard.writeText(t)}catch(e){}el.innerH
 // ---------------------------------------------------------------- H6
 // Make my video goes straight to the editor: round 0 plays the clip and lists every step of the cut (home.py videos)
 // "Try it with a sample video": the repo's public sample take, downloaded once, then the real flow with its decisions shipped
-async function trySample(){if((ui.sample||{}).busy)return;ui.sample={busy:1};render();if(!GS().setup&&!latest('setup')){await post('/job',{type:'setup'});if(!S.listening)await connectClaude()}const r=await post('/sample',{});ui.sample=r._ok?null:{msg:r.msg||'That did not work. Try again.'};await load();if(r._ok)toEditor(r);else render()}
+async function trySample(){if((ui.sample||{}).busy)return;ui.sample={busy:1};render();if(!GS().setup&&!latest('setup')){await post('/job',{type:'setup'});if(!S.listening){if(S.agent_backend==='codex')openCodex();else await connectClaude()}}const r=await post('/sample',{});ui.sample=r._ok?null:{msg:r.msg||'That did not work. Try again.'};await load();if(r._ok)toEditor(r);else render()}
 const sampleRow=()=>{const b=(ui.sample||{}).busy;return `<div class="row smprow" style="gap:12px;flex-wrap:wrap"><span class="t2" style="color:var(--t2);font-size:14px">No footage handy?</span><button class="b2" ${b?'disabled':''} onclick="trySample()">${b?'Getting the sample video...':'Try it with a sample video'}</button></div>${(ui.sample||{}).msg?`<div class="msg bad">${CROSS}<span>${esc(ui.sample.msg)}</span></div>`:''}`};
 function toEditor(r){const e=(r.edits||[])[0];if(e){location.href='/review?dir='+encodeURIComponent(e);return}loadLib().then(()=>rgo('videos'))}
 
@@ -1171,6 +1171,7 @@ function toEditor(r){const e=(r.edits||[])[0];if(e){location.href='/review?dir='
 // the view lives in the address (#videos, #style/@sample-50-50), so a reload stays on it; the review page's rail opens one
 const HASHV=['home','videos','mystyle','skills','settings','new'];
 let L=null, R=null, rv=null;
+addEventListener('integrationsUpdated',()=>{loadLib().then(()=>{L=null;load()})});
 {const h=decodeURIComponent(location.hash.slice(1));if(h.startsWith('style/')){rv='stylepage';ui.sp=h.slice(6)}else if(HASHV.includes(h))rv=h}
 function setHash(){const h=rv==='stylepage'&&ui.sp?'#style/'+encodeURIComponent(ui.sp):HASHV.includes(rv)&&rv!=='home'?'#'+rv:'';if(location.hash!==h)history.replaceState(null,'',location.pathname+location.search+h)}
 const nv={sel:[],clips:{},join:true,aspect:'9:16',style:'mine',filter:'all',up:[],script:'',scriptName:'',scriptMsg:'',draft:null,assets:[],assetMsg:'',bclips:[],bmsg:'',bpick:null,bq:'',broll:[],brollAuto:true,brollAll:false,brollQ:'',note:'',reel:null,reelMsg:'',reelBusy:false,reelLogin:false};
@@ -2033,6 +2034,7 @@ function planFor(j){
 // nobody listening: "Connect Claude" opens a new Terminal with a listening Claude (launcher.connect, one at a time);
 // where no terminal can open (S.new_claude false), the old instruction
 function connectHTML(lead,old){
+  if(S.agent_backend!=='claude')return `<span class="cnx">${lead?esc(lead)+' ':''}<button class="btn dark sm" onclick="event.stopPropagation();openCodex()">Connect Codex</button> <button class="hlink" data-agent-choice onclick="event.stopPropagation();connectClaude()">Use Claude</button></span>`;
   const c=ui.connect||{},t=S.connect?Date.now()/1000-S.connect:null,l=lead?esc(lead)+' ':'',stop='event.stopPropagation();';
   if(c.command)return `<span class="cnx">${l}Run this in a new Terminal window:<span class="codebox"><span>${esc(c.command)}</span><button class="hlink" onclick="${stop}copyText(${esc(JSON.stringify(c.command))},this)">Copy</button></span></span>`;
   if(t!=null&&t<60)return `<span class="cnx">${SPIN}Opening Claude in a new Terminal window...</span>`;
@@ -2692,6 +2694,12 @@ addEventListener('pointerdown',()=>{held=Date.now()},true);
 addEventListener('pointerup',()=>{held=0},true);   // the click follows in the same task: no poll can land between them
 addEventListener('pointercancel',()=>{held=0},true);
 function paint(el,h,view){
+  if(S&&S.agent_backend==='codex'){
+    const t=document.createElement('template');t.innerHTML=h;
+    const w=document.createTreeWalker(t.content,NodeFilter.SHOW_TEXT);
+    while(w.nextNode())if(!w.currentNode.parentElement?.closest('[data-agent-choice],code,script,style'))w.currentNode.textContent=w.currentNode.textContent.replace(/\bClaude\b/g,'Codex');
+    h=t.innerHTML;
+  }
   if(el._h!=null&&still(el._h)===still(h)&&el._v===view)return;
   if(held&&Date.now()-held<3000&&el._v===view&&el._h!=null){clearTimeout(paint.t);paint.t=setTimeout(()=>render(),60);return}
   const keep=[];
@@ -2753,5 +2761,7 @@ window.addEventListener('dragover',e=>e.preventDefault());window.addEventListene
 load().then(loadRecent).then(loadBroll);setInterval(load,1500);setInterval(loadLib,4000);
 </script>
 <script src="/ask.js"></script>
+<script src="/codex.js"></script>
+<script src="/integrations.js"></script>
 </body>
 </html>

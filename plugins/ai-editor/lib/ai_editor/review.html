@@ -968,8 +968,11 @@ function steps(){
   });
 }
 // the new Claude review.py opened for this edit in the last 15 min (Submit with no Claude on it, or Open a new Claude)
-const newClaude=S=>!S.listening&&S.claude&&Date.now()/1000-S.claude.at<900?(S.claude.opened?{typed:'Your notes went to the Claude already open in Terminal',resumed:'The Claude that worked on this opens again in Terminal'}[S.claude.how]||'A new Claude is starting in its own Terminal window':'Run this in a terminal to start Claude: '+S.claude.command):'';
+const newClaude=S=>!S.listening&&S.claude&&Date.now()/1000-S.claude.at<900?(S.claude.how==='codex'?'Your review action was queued for Codex. Open the Codex panel for progress.':S.claude.opened?{typed:'Your notes went to the Claude already open in Terminal',resumed:'The Claude that worked on this opens again in Terminal'}[S.claude.how]||'A new Claude is starting in its own Terminal window':'Run this in a terminal to start Claude: '+S.claude.command):'';
 function listenText(S){
+  const text=listenProviderText(S);return S.agent_backend==='codex'?text.replace(/\bClaude\b/g,'Codex').replace('in its own Terminal window','in the Codex panel').replace('Submitting opens a new Codex.','Submitting queues your request for Codex.'):text;
+}
+function listenProviderText(S){
   const e=S.events[S.events.length-1],picked=!!(S.sent&&e&&e.handled);
   if(picked&&e.type==='approve')return e.stills?'Claude is making the video':e.stage==='cut'?(S.stage==='cut'&&!S.final?'Claude is making the edit':'The cut is approved'):'Approved';
   if(picked&&!alive(S))return newClaude(S)||'Claude stopped. Your notes are saved.';
@@ -981,17 +984,25 @@ function listenText(S){
   if(S.busy)return 'Claude is working.';   // notes sent now are next; #newclaude beside it if it stopped
   return 'Claude is not listening. Submitting opens a new Claude.';
 }
+function providerLabels(){
+  if(S?.agent_backend!=='codex')return;
+  for(const el of document.querySelectorAll('#send,#msend,#listen,#stagetext,#list .claude b,#list .empty,#list .unsent')){
+    const walk=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);
+    while(walk.nextNode())walk.currentNode.textContent=walk.currentNode.textContent.replace(/\bClaude\b/g,'Codex');
+    if(el.title)el.title=el.title.replace(/\bClaude\b/g,'Codex');
+  }
+}
 function render(){
   if(!S)return;
   document.body.classList.toggle('vertical',!!S.vertical);renderRail();
   const p=pending(),lastEv=S.events[S.events.length-1],picked=!!(S.sent&&lastEv&&lastEv.handled),vr=viewRound();
-  $('name').textContent=S.name;$('name').title=S.name;document.title=S.name+(p==='send'?' · Claude working':' · '+dn(S));steps();
+  $('name').textContent=S.name;$('name').title=S.name;document.title=S.name+(p==='send'?' · '+(S.agent_backend==='codex'?'Codex':'Claude')+' working':' · '+dn(S));steps();
   const idleEdit=makingEdit()&&makeState().idle,busyNow=!idleEdit&&(picked&&alive(S)&&(p==='send'||!!S.raw)||makingEdit()||approving);
   const nowAct=busyNow&&(S.activity||[]).filter(x=>x.round===S.round&&!x.done).pop();
   const asking=!!document.documentElement.dataset.ask;   // ask.js: Claude's question box is open on this page
-  $('listen').innerHTML=asking?'<b>Claude is asking you something</b>':esc(approving?(S.stills?'Preview approved':'Cut approved'):idleEdit?'Claude is not working on the edit':listenText(S))+(!asking&&nowAct&&nowAct.text?` <span class="stp">· ${esc(nowAct.text)}</span>`:'');
-  $('newclaude').hidden=asking||!S.busy||S.listening||picked||!!newClaude(S);   // the Claude working here may have stopped
-  $('resumebtn').hidden=alive(S)||asking;   // the Claude that made this is gone: a new session picks it up from this
+  $('listen').innerHTML=asking?'<b>'+(S.agent_backend==='codex'?'Codex':'Claude')+' is asking you something</b>':esc(approving?(S.stills?'Preview approved':'Cut approved'):idleEdit?(S.agent_backend==='codex'?'Codex':'Claude')+' is not working on the edit':listenText(S))+(!asking&&nowAct&&nowAct.text?` <span class="stp">· ${esc(nowAct.text)}</span>`:'');
+  $('newclaude').hidden=S.agent_backend==='codex'||asking||!S.busy||S.listening||picked||!!newClaude(S);   // the Claude working here may have stopped
+  $('resumebtn').hidden=S.agent_backend==='codex'||alive(S)||asking;   // the Claude that made this is gone: a new session picks it up from this
   $('statusbox').classList.toggle('work',busyNow&&!asking);$('statusbox').querySelector('i').innerHTML=busyNow&&!asking?SPIN:'';
   $('mstage').textContent=STAGE[view.stage];$('msub').textContent=S.name+' · '+rn(view).toLowerCase();
   const mine=S.comments.filter(c=>c.stage===S.stage&&c.round===S.round).length,live=isCur()&&!p;
@@ -1038,7 +1049,7 @@ function render(){
   ta.placeholder=previewOn?'Back to the cut to leave a note':p==='send'?(S.raw?'Note for the cut...':'Note for the next draft...'):!isCur()?'Older draft, read only':p==='approve'?(S.stills?'The preview is approved':S.stage==='cut'&&!S.final?'The cut is approved':'Approved'):view.round>1?'Feedback on '+dn(viewRound())+' at this moment...':'Type feedback for this moment...';
   const sc=$('scope');sc.style.display=nv&&canNote?'block':'none';
   if(nv)sc.innerHTML=`<option value="">${esc(lab(alt))} only</option><option value="*">${nv===1?'Both':'All'} versions</option>`;
-  renderVer();renderTx();renderBar();renderTracks();renderEdTracks();renderList();renderAdds();boxTime();hitSig='~';renderHits();
+  renderVer();renderTx();renderBar();renderTracks();renderEdTracks();renderList();renderAdds();boxTime();hitSig='~';renderHits();providerLabels();
 }
 const noteOk=()=>!!S&&isCur()&&pending()!=='approve'&&!previewOn;   // the composer is open (while Claude works a note waits)
 function meta(){   // "Round 1 · 31s ago", ticked every few seconds so the age stays true
@@ -1339,7 +1350,7 @@ function renderList(){
   const hadLearn=!!l.querySelector('.learn'),newP=p!==renderList.p;renderList.p=p;
   const ln=document.activeElement&&document.activeElement.classList.contains('lname')?document.activeElement.selectionStart:null;
   // with Claude: open at the work panel at the bottom, then stay where the user scrolled (status lines re-render this)
-  l.innerHTML=h;l.scrollTop=isCur()&&p&&!editing&&(atEnd||newP)?l.scrollHeight:keepScroll;
+  l.innerHTML=h;providerLabels();l.scrollTop=isCur()&&p&&!editing&&(atEnd||newP)?l.scrollHeight:keepScroll;
   const lp=l.querySelector('.learn');if(lp&&!hadLearn)lp.scrollIntoView({block:'end'});
   const lnm=l.querySelector('.lname');if(lnm){lnm.oninput=()=>{lName=lnm.value;lErr='';const b=l.querySelector('[data-lsave]');if(b)b.disabled=!lName.trim()||(S.learn.rules||[]).every((r,i)=>untick.has(i))};
     lnm.onkeydown=ev=>{if(ev.key==='Enter'&&lName.trim()){ev.preventDefault();l.querySelector('[data-lsave]').click()}};if(ln!=null){lnm.focus();lnm.setSelectionRange(ln,ln)}}
@@ -2104,4 +2115,4 @@ load();setInterval(load,3000);
     if(document.body.classList.contains('vertical'))keep('--plw',Math.round(Math.max(20,Math.min(75,(e.clientX-r.left)/r.width*100)))+'cqw');
     else keep('--txsplit',Math.round(Math.max(20,Math.min(85,(e.clientY-r.top)/r.height*100)))+'%')},clear('--txsplit','--plw'));
 })();
-</script><script src="/ask.js"></script></body></html>
+</script><script src="/ask.js"></script><script src="/codex.js"></script><script src="/integrations.js"></script></body></html>
