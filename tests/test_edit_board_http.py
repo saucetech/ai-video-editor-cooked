@@ -73,6 +73,14 @@ class EditBoardHTTPTests(unittest.TestCase):
             self.assertTrue(raw)
             self.assertEqual(self.request('GET', path, auth=False)[0], 403)
 
+    def test_asset_catalog_is_owned_and_read_only(self):
+        asset=self.root/'assets';asset.mkdir();(asset/'broll.mp4').write_bytes(b'video')
+        (asset/'not-video.txt').write_text('text',encoding='utf-8')
+        (asset/'escape.mov').symlink_to('/etc/hosts')
+        status,_,raw=self.request('GET','/board/assets')
+        self.assertEqual(status,200);self.assertEqual([a['name'] for a in json.loads(raw)['assets']],['broll.mp4'])
+        self.assertEqual(self.request('POST','/board/assets',{})[0],405)
+
     def test_media_range_only_serves_selected_source_or_known_revision(self):
         edit = self.root / 'edits/cut'; edit.mkdir(parents=True)
         src = edit / 'source.mp4'; src.write_bytes(b'0123456789')

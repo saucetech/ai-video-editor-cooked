@@ -97,6 +97,23 @@ class ResolveBridgeTests(unittest.TestCase):
         self.assertTrue(result['ok'], result)
         return self.resolve.project.timelines[0]
 
+    def test_visual_timeline_settings_are_applied_away_from_active_fusion_viewer(self):
+        pages=[];current=['edit'];project=self.resolve.project;create=project.CreateEmptyTimeline
+        self.resolve.GetCurrentPage=lambda:current[0]
+        def open_page(page):current[0]=page;pages.append(page);return True
+        self.resolve.OpenPage=open_page
+        def new_timeline(name):
+            tl=create(name);set_settings=tl.SetSettings
+            def configure(settings):
+                self.assertEqual(current[0],'media','An active Fusion viewer can hold the render lock during settings synchronization')
+                return set_settings(settings)
+            tl.SetSettings=configure;return tl
+        project.CreateEmptyTimeline=new_timeline
+        with patch('ai_editor.resolve_visuals.load_bundle',return_value={'width':640,'height':360,'layers':[]}):
+            self.create()
+        self.assertEqual(pages,['media','edit'])
+        self.assertEqual(project.current,'manual-current-timeline')
+
     def test_status_only_reads_connection(self):
         self.assertTrue(self.bridge.status()['connected'])
         self.assertEqual(self.bridge.status()['version'], '21.1.1')

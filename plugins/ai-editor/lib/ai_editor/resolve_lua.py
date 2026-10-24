@@ -10,16 +10,18 @@ import uuid
 from pathlib import Path
 
 METHODS = {
-    'Resolve': {'GetVersionString', 'GetProjectManager'},
+    'Resolve': {'GetVersionString', 'GetProjectManager', 'GetCurrentPage', 'OpenPage'},
     'ProjectManager': {'GetCurrentProject', 'SaveProject'},
     'Project': {'GetUniqueId', 'GetName', 'GetMediaPool', 'GetCurrentTimeline', 'SetCurrentTimeline',
                 'GetTimelineCount', 'GetTimelineByIndex'},
     'MediaPool': {'ImportMedia', 'CreateEmptyTimeline', 'AppendToTimeline'},
     'MediaPoolItem': {'GetUniqueId', 'GetClipProperty'},
     'Timeline': {'GetUniqueId', 'GetName', 'SetSettings', 'GetSettings', 'GetStartFrame',
-                 'GetTrackCount', 'GetItemListInTrack'},
+                 'GetTrackCount', 'GetItemListInTrack', 'AddTrack', 'SetTrackName', 'SetCurrentTimecode', 'GetCurrentTimecode'},
     'TimelineItem': {'GetUniqueId', 'GetStart', 'GetEnd', 'GetDuration', 'GetSpeed', 'GetClipEnabled',
-                     'GetLeftOffset', 'GetRightOffset', 'GetMediaPoolItem', 'GetProperties', 'SetProperties'},
+                     'GetLeftOffset', 'GetRightOffset', 'GetMediaPoolItem', 'GetProperties', 'SetProperties', 'ImportFusionComp', 'GetFusionCompByIndex'},
+    'FusionComp': {'FindTool'},
+    'FusionTool': {'GetInput', 'SetInput'},
 }
 
 
@@ -90,7 +92,11 @@ class Proxy:
     def __getattr__(self, method):
         if method not in METHODS.get(self.kind, set()):
             raise AttributeError('Unsupported Resolve method: ' + method)
-        return lambda *args: self.session.call(self.ref, method, args)
+        def invoke(*args):
+            if self.kind == 'FusionTool' and method == 'SetInput' and (len(args) != 2 or args[0] != 'StyledText' or not isinstance(args[1], str) or len(args[1]) > 500):
+                raise ValueError('Only bounded editable text changes are supported through this connection.')
+            return self.session.call(self.ref, method, args)
+        return invoke
 
 
 class Session:

@@ -58,6 +58,10 @@ def _rate(fps):
 
 
 def _load_edit(edit):
+    try:
+        from . import resolve_visuals
+    except ImportError:
+        import resolve_visuals
     report = _read(edit / 'report.json')
     fps = float(report['fps'])
     rate = _rate(fps)
@@ -107,8 +111,11 @@ def _load_edit(edit):
     if plan.get('captions') or plan.get('cards') or plan.get('sfx'):
         warnings.append('Captions, graphics and sound cues are not imported by this source-cut adapter.')
     st = source.stat()
-    return {'source': str(source), 'source_stat': [st.st_size, st.st_mtime_ns],
-            'rate': [rate.numerator, rate.denominator], 'clips': clips, 'warnings': warnings}
+    result = {'source': str(source), 'source_stat': [st.st_size, st.st_mtime_ns],
+              'rate': [rate.numerator, rate.denominator], 'clips': clips, 'warnings': warnings}
+    visual = resolve_visuals.load_bundle(edit, total, rate)
+    if visual: result['visual_bundle'] = visual
+    return result
 
 
 def _snapshot(timeline):
@@ -261,14 +268,23 @@ class ResolveBridge:
                  'Kept ranges exceed the original source frame count.', 'invalid_edit')
         current = project.GetCurrentTimeline()
         timeline = None
+        page = None
         try:
+            if data.get('visual_bundle'):
+                # Resolve synchronizes Fusion settings under a render lock. Leave the viewer first.
+                page = self.resolve.GetCurrentPage()
+                _require(self.resolve.OpenPage('media'), 'Open the Media page before configuring this visual timeline.')
+                _require(self.resolve.GetCurrentPage() == 'media', 'Resolve did not leave its active viewer.')
             timeline = _require(pool.CreateEmptyTimeline(name or 'GenMedia ' + edit.name), 'Resolve could not create a new timeline.')
             manifest = dict(data, schema=1, state='incomplete', project_id=project.GetUniqueId(),
                             timeline_id=timeline.GetUniqueId(), timeline_name=timeline.GetName())
             _write(path, manifest)  # interruption is visible; never blindly replay a mutation
             rate = Fraction(*data['rate'])
             label = format(round(float(rate), 3), 'g')
-            _require(timeline.SetSettings({'useCustomSettings': '1', 'timelineFrameRate': label}),
+            settings = {'useCustomSettings': '1', 'timelineFrameRate': label}
+            if data.get('visual_bundle'):
+                settings.update(timelineResolutionWidth=str(data['visual_bundle'].get('native_width',data['visual_bundle']['width'])), timelineResolutionHeight=str(data['visual_bundle'].get('native_height',data['visual_bundle']['height'])))
+            _require(timeline.SetSettings(settings),
                      'Resolve rejected the dedicated timeline frame rate; timeline is incomplete.')
             _require(_rate(timeline.GetSettings()['timelineFrameRate']) == rate,
                      'Resolve did not apply the source frame rate; timeline is incomplete.')
@@ -289,6 +305,13 @@ class ResolveBridge:
             rows, _ = _snapshot(timeline)
             for row, clip in zip(sorted((r for r in rows if r['kind'] == 'video'), key=lambda r: r['start']), data['clips']):
                 _require(_same(row['properties'], clip['properties']), 'Resolve did not apply zoom properties; timeline is incomplete.')
+            if data.get('visual_bundle'):
+                try:
+                    from . import resolve_visuals
+                except ImportError:
+                    import resolve_visuals
+                manifest['native_layers'] = resolve_visuals.append_layers(pool, timeline, data['visual_bundle'], start)
+                rows, _ = _snapshot(timeline)
             manifest.update(state='ready', snapshot=rows, settings=timeline.GetSettings())
             _require(manager.SaveProject(), 'Resolve could not save the project; manifest remains incomplete.')
             _write(path, manifest)
@@ -296,10 +319,14 @@ class ResolveBridge:
         finally:
             if current is not None and timeline is not None:
                 _require(project.SetCurrentTimeline(current), 'Created timeline, but could not restore the previously selected timeline. Inspect Resolve.')
+            if page:
+                _require(self.resolve.OpenPage(page), 'Inspect Resolve: its previous page could not be restored.')
 
     def _update(self, edit, data, project, manager):
         path = edit / MANIFEST
         manifest = _read(path)
+        _require(not manifest.get('visual_bundle', {}).get('layers'),
+                 'This revision has editable visual layers. Create a new board revision and timeline to preserve native finishing.', 'visual_revision')
         _require(manifest.get('schema') == 1 and manifest.get('state') == 'ready',
                  'Manifest is incomplete or unsupported. Inspect the created timeline; do not retry blindly.', 'incomplete')
         _require(manifest['project_id'] == project.GetUniqueId(), 'Open the project that owns this timeline.', 'wrong_project')

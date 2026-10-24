@@ -25,12 +25,12 @@
 <div class="section-head viewer-head"><span id="project-name"></span><span id="player-mode" class="tag">Original source</span></div>
 <div class="video-stage"><video id="player" controls preload="metadata" playsinline aria-label="Edit board video"></video></div>
 <div class="sequence-head"><h2>Source sequence</h2><span id="duration" class="duration"></span></div><div id="sequence" class="sequence" aria-label="Source passages"></div>
-<p class="viewer-limit">Cut preview includes source audio. Static zooms apply in Resolve.</p>
+<p class="viewer-limit">Preview includes enabled captions, motion, B-roll and zooms with source audio. Resolve text remains editable.</p>
 <div class="delivery">
 <section class="preview-controls" aria-labelledby="preview-title">
 <div class="section-head"><h2 id="preview-title">Cut preview</h2><button id="preview">Build preview</button></div>
 <label for="revision" class="field-label">Saved version</label><select id="revision" class="wide"><option value="">No previews yet</option></select>
-<div class="inline actions"><button id="watch">Watch preview</button><button id="approve" class="primary">Approve preview</button></div><div id="revision-info" class="revision-info"></div>
+<div class="inline actions"><button id="watch">Watch preview</button><button id="approve" class="primary">Approve preview</button></div><div id="revision-info" class="revision-info"></div><a id="captions-download" class="caption-download" hidden download="captions.srt">Download captions · SRT</a>
 </section>
 <section class="resolve-block" aria-labelledby="resolve-title">
 <div class="section-head"><h2 id="resolve-title">DaVinci Resolve</h2><button id="check-resolve" class="subtle">Check connection</button></div>
@@ -41,9 +41,9 @@
 </div>
 </section>
 <section class="story" aria-labelledby="passages-title">
-<div class="section-head story-head"><h2 id="passages-title">Passages</h2><span class="muted small">Source order</span></div>
+<div class="section-head story-head"><h2 id="passages-title">Passages</h2><button id="upload-broll" class="subtle">Add B-roll</button><input id="broll-file" type="file" accept="video/mp4,video/quicktime,video/webm,.mkv,.m4v" hidden></div>
 <p id="sample-note" class="sample-note" hidden>Synthetic sample with test pattern and tone. Passage labels are not a transcript.</p>
-<div id="rows"></div><p class="planning-limit">Visual direction and emphasis are planning notes. They do not render captions or graphics.</p>
+<div id="rows"></div><p class="planning-limit">Captions & visuals render in the preview. Visual direction and emphasis remain planning notes.</p>
 <div class="save-bar"><span id="save-state">Draft loaded</span><button id="save" class="primary">Save board</button></div>
 </section>
 </div>

@@ -15,6 +15,7 @@ from fractions import Fraction
 from pathlib import Path
 
 import resolve_bridge as resolve
+import board_visuals as visuals
 
 HERE = Path(__file__).resolve().parent
 RENDER = HERE.parents[1] / 'skills/cut/scripts/render.py'
@@ -156,7 +157,7 @@ def revisions(edit):
 
 
 def view(edit, board, ctx):
-    return {**board, 'edit': str(edit), 'name': edit.name, 'fps': ctx['fps'], 'total_frames': ctx['total_frames'],
+    return {**board, 'rows': [visuals.row_defaults(r) for r in board['rows']], 'edit': str(edit), 'name': edit.name, 'fps': ctx['fps'], 'total_frames': ctx['total_frames'],
             'selected_frames': sum(r['end_frame'] - r['start_frame'] for r in board['rows'] if r['keep']),
             'revisions': revisions(edit)}
 
@@ -168,7 +169,7 @@ def load(edit):
         return view(edit, board, ctx)
 
 
-def save(edit, expected_version, rows):
+def save(edit, expected_version, rows, asset_roots=None):
     edit = Path(edit).resolve()
     with locked(edit):
         board, ctx = current(edit, expected_version)
@@ -188,9 +189,13 @@ def save(edit, expected_version, rows):
             z = row.get('zoom')
             if type(z) not in (float, int) or not math.isfinite(z) or not 1 <= z <= 2:
                 raise ValueError('Use a static zoom between 1 and 2.')
-            clean.append({**old, **{k: row[k] for k in ('keep', 'protected', 'note', 'emphasis', 'zoom')}})
+            visual = visuals.validate_row(row, asset_roots or [edit])
+            clean.append({**visuals.row_defaults(old), **{k: row[k] for k in ('keep', 'protected', 'note', 'emphasis', 'zoom')},
+                          **{k: visual[k] for k in visuals.FIELDS},
+                          **({'broll_identity': visual['broll_identity']} if visual.get('broll_identity') else {})})
+            if not visual.get('broll_identity'):clean[-1].pop('broll_identity', None)
         if not any(r['keep'] for r in clean): raise ValueError('Keep at least one source interval.')
-        if clean != board['rows']:
+        if clean != [visuals.row_defaults(r) for r in board['rows']]:
             board.update(rows=clean, version=board['version'] + 1, approved_revision=None)
             write(edit / 'board.json', board)
         return view(edit, board, ctx)
@@ -233,7 +238,9 @@ def preview(edit, expected_version):
         write(path / 'revision.json', rev)
         try:
             with (path / 'render.log').open('wb') as log:
-                process = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), '--render', str(path)],
+                import run
+                py = run.venv_python()
+                process = subprocess.Popen([str(py) if py.exists() else sys.executable, str(Path(__file__).resolve()), '--render', str(path)],
                                            stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
                                            start_new_session=True)
             threading.Thread(target=process.wait, daemon=True).start()
@@ -273,6 +280,12 @@ def _render_revision(path):
         if artifacts(path) != meta['artifact_digest']: raise ValueError('Revision files changed.')
         report = read(path / 'report.json')
         run_renderer([sys.executable, str(RENDER), report['source'], str(path), '--no-hw', '--max', '720'])
+        rows = read(path / 'board-rows.json')
+        if any(r.get('caption_enabled') or r.get('motion', 'none') != 'none' or r.get('broll') or r.get('zoom', 1) != 1 for r in rows):
+            bundle = visuals.compile_bundle(path, rows, report)
+            visuals.render_preview(path, rows, bundle)
+            visuals.verify_bundle(path)
+            meta['visual_digest'] = visuals.file_hash(path / 'visuals.json')
         if artifacts(path) != meta['artifact_digest']: raise ValueError('Revision files changed during rendering.')
         st = (path / 'cut.mp4').stat()
         meta.update(state='ready', preview_stat=[st.st_size, st.st_mtime_ns])
@@ -289,6 +302,10 @@ def checked_revision(edit, rid, board, ctx):
     st = (path / 'cut.mp4').stat()
     if [st.st_size, st.st_mtime_ns] != rev['preview_stat']:
         raise ValueError('The preview changed. Create a new preview before approval.')
+    if rev.get('visual_digest'):
+        if visuals.file_hash(path / 'visuals.json') != rev['visual_digest']:
+            raise ValueError('Visual decisions changed. Build and approve a new preview.')
+        visuals.verify_bundle(path)
     return path, rev
 
 

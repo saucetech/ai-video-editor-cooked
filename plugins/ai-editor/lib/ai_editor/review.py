@@ -3284,6 +3284,7 @@ def demo():
     import tempfile
     tmp = Path(tempfile.mkdtemp(prefix="review_demo_"))
     os.environ["AI_EDITOR_HOME"] = str(tmp / "home")   # start records the folder in the library index there
+    os.environ["AI_EDITOR_LIBRARY"] = str(tmp / "lib")   # never scan the owner's active library in this synthetic demo
     demo_timings(tmp)
     # notes sent with no Claude on the edit: a new one opens in the library to carry on; never twice, never over a listener
     import launcher

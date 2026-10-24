@@ -1239,7 +1239,7 @@ def demo_launcher():
         with open(moved, "w", encoding="utf-8", newline="") as fh:
             fh.write(real.read_text(encoding="utf-8").replace(str(LAUNCHER), str(t / "gone.py")))
         r = subprocess.run(run(moved), capture_output=True, text=True)
-        assert r.returncode == 1 and r.stdout.strip() == "cooked. moved, maybe an update. In Claude Code, say: set up the editor.", r.stdout
+        assert r.returncode == 1 and r.stdout.strip() == "GenMedia Editor moved, maybe an update. In Claude Code, say: set up the editor.", r.stdout
         moved.unlink()
         if win:
             real.unlink()
@@ -1467,14 +1467,14 @@ def demo_install_all():
         def no_renderer(*a, **k):
             sys.exit("ERROR: drawing a test frame failed (exit 1); its output is above.")
         quiet = no_renderer
-        assert step_warm() == "skipped"
+        assert step_warm(force=True) == "skipped"
 
         def disk_full(*a, **k):
             raise OSError(28, "No space left on device")
         quiet = disk_full
         import glob as g
         before = set(g.glob(os.path.join(tempfile.gettempdir(), "ave-warm-*")))
-        assert step_warm() == "skipped" and set(g.glob(os.path.join(tempfile.gettempdir(), "ave-warm-*"))) == before
+        assert step_warm(force=True) == "skipped" and set(g.glob(os.path.join(tempfile.gettempdir(), "ave-warm-*"))) == before
         models.fetch = lambda *a, **k: sys.exit("ERROR: no connection")
         with tempfile.TemporaryDirectory() as d:
             keep_dir, models.DIR = models.DIR, Path(d)

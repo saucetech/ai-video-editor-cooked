@@ -99,7 +99,7 @@ local methods = decode(__METHODS__)
 local allowed = {}
 for kind,names in pairs(methods) do allowed[kind]={}; for _,name in ipairs(names) do allowed[kind][name]=true end end
 local objectKinds = {GetProjectManager='ProjectManager',GetCurrentProject='Project',GetMediaPool='MediaPool',
-  GetCurrentTimeline='Timeline',CreateEmptyTimeline='Timeline',GetTimelineByIndex='Timeline',GetMediaPoolItem='MediaPoolItem'}
+  GetCurrentTimeline='Timeline',CreateEmptyTimeline='Timeline',GetTimelineByIndex='Timeline',GetMediaPoolItem='MediaPoolItem',ImportFusionComp='FusionComp',GetFusionCompByIndex='FusionComp',FindTool='FusionTool'}
 local listKinds = {ImportMedia='MediaPoolItem',AppendToTimeline='TimelineItem',GetItemListInTrack='TimelineItem'}
 local objects, counter, session = {}, 0, nil
 local function reference(object, kind)
@@ -120,6 +120,9 @@ local function dispatch(r)
   local obj=assert(objects[r.target], 'Unknown Resolve handle')
   assert(allowed[obj.kind] and allowed[obj.kind][r.method], 'Unsupported Resolve method')
   assert(type(r.args)=='table' and #r.args<10, 'Invalid arguments')
+  if obj.kind=='FusionTool' and r.method=='SetInput' then
+    assert(#r.args==2 and r.args[1]=='StyledText' and type(r.args[2])=='string' and #r.args[2]<=2000, 'Only bounded text changes are supported')
+  end
   local result=obj.object[r.method](obj.object, unpack(unpackValue(r.args)))
   if objectKinds[r.method] then return reference(result,objectKinds[r.method]) end
   if listKinds[r.method] then

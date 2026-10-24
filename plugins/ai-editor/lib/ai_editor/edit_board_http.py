@@ -12,8 +12,8 @@ HERE = Path(__file__).resolve().parent
 ASSETS = {'/edit-board': ('edit-board.html', 'text/html; charset=utf-8'),
           '/edit-board.js': ('edit-board.js', 'text/javascript; charset=utf-8'),
           '/edit-board.css': ('edit-board.css', 'text/css; charset=utf-8')}
-PATHS = {'/board/projects', '/board/load', '/board/save', '/board/preview', '/board/approve',
-         '/board/resolve', '/board/sample', '/board/media'}
+PATHS = {'/board/projects', '/board/assets', '/board/load', '/board/save', '/board/preview', '/board/approve',
+         '/board/resolve', '/board/sample', '/board/media', '/board/captions'}
 
 
 def media(handler, file):
@@ -58,6 +58,25 @@ def route(handler, method, path, body, home):
         if path == '/board/projects' and method == 'GET':
             handler.send(200, {'edits': integrations_http.edits(home)})
             return True
+        if path == '/board/assets' and method == 'GET':
+            root = Path(home.read()['root']).resolve()
+            files = []
+            for folder in ('videos', 'assets', '.staged'):
+                for file in (root / folder).rglob('*'):
+                    if len(files) >= 200: break
+                    if file.is_file() and file.suffix.lower() in board.visuals.VIDEO_EXTS and file.resolve().is_relative_to(root):
+                        files.append({'path': str(file.resolve()), 'name': file.name})
+            handler.send(200, {'assets': files})
+            return True
+        if path == '/board/captions' and method == 'GET':
+            q = {k:v[0] for k,v in parse_qs(urlsplit(handler.path).query).items()}
+            edit = integrations_http.edit_path(q.get('edit'), home)
+            folder = board.revision_dir(edit, q.get('revision'))
+            if board.read(folder / 'revision.json')['state'] != 'ready':raise ValueError('The preview is not ready.')
+            board.visuals.verify_bundle(folder)
+            file = folder / 'captions.srt'
+            handler.send(200, file.read_bytes(), 'application/x-subrip; charset=utf-8')
+            return True
         if path == '/board/media' and method == 'GET':
             q = {k: v[0] for k, v in parse_qs(urlsplit(handler.path).query).items()}
             edit = integrations_http.edit_path(q.get('edit'), home)
@@ -74,7 +93,7 @@ def route(handler, method, path, body, home):
                 raise ValueError('The selected media is unavailable.')
             media(handler, file)
             return True
-        if method != 'POST' or path in ASSETS or path in ('/board/projects', '/board/media'):
+        if method != 'POST' or path in ASSETS or path in ('/board/projects', '/board/assets', '/board/media', '/board/captions'):
             handler.send(405, {'error': 'Use the board control for this action.'}); return True
         if not isinstance(body, dict): raise ValueError('Expected a board request object.')
         import live
@@ -84,7 +103,7 @@ def route(handler, method, path, body, home):
                 edit = integrations_http.edit_path(body.get('edit'), home)
                 version, rid = body.get('version'), body.get('revision')
                 if path == '/board/load': result = board.load(edit)
-                elif path == '/board/save': result = board.save(edit, version, body.get('rows'))
+                elif path == '/board/save': result = board.save(edit, version, body.get('rows'), [Path(home.read()['root'])])
                 elif path == '/board/preview': result = board.preview(edit, version)
                 elif path == '/board/approve': result = board.approve(edit, rid, version)
                 else: result = board.send_to_resolve(edit, rid, version)
