@@ -45,6 +45,42 @@ class ResolveVisualTests(unittest.TestCase):
     def test_wrong_native_caption_text_is_failure_not_a_ready_timeline(self):
         layer={'kind':'caption','track':4,'start':0,'end':30,'source_start':0,'media':'c.mov','comp':'c.comp','text':'Wrong native value'}
         with self.assertRaisesRegex(ValueError,'text|caption'):self.mod.append_layers(Pool(),Timeline(),{'root':'/revision','layers':[layer]},0)
+    def test_matching_canvas_uses_existing_settings_instead_of_resynchronizing_fusion(self):
+        class NativeTimeline:
+            def GetSettings(self):return {'timelineFrameRate':'30','timelineResolutionWidth':'640','timelineResolutionHeight':'360'}
+        template=NativeTimeline()
+        class Project:
+            def GetTimelineCount(self):return 1
+            def GetTimelineByIndex(self,index):return template
+        self.assertIs(self.mod.matching_template(Project(),{'width':640,'height':360},30),template)
+
+    def test_new_canvas_in_a_fusion_project_stops_before_native_creation(self):
+        class Item:
+            def GetFusionCompCount(self):return 1
+        class NativeTimeline:
+            def GetSettings(self):return {'timelineFrameRate':'24','timelineResolutionWidth':'1920','timelineResolutionHeight':'1080'}
+            def GetTrackCount(self,kind):return 1
+            def GetItemListInTrack(self,kind,index):return [Item()]
+        class Project:
+            def GetTimelineCount(self):return 1
+            def GetTimelineByIndex(self,index):return NativeTimeline()
+        with self.assertRaisesRegex(ValueError,'fresh|project'):
+            self.mod.matching_template(Project(),{'width':640,'height':360},30)
+
+    def test_duplicate_is_cleared_across_all_tracks_without_touching_original(self):
+        original={'video':[object(),object()],'audio':[object()],'subtitle':[object()]}
+        duplicate={k:list(v) for k,v in original.items()}
+        class NativeTimeline:
+            def GetTrackCount(self,kind):return 1
+            def GetItemListInTrack(self,kind,index):return duplicate[kind]
+            def DeleteClips(self,items,ripple):
+                self.ripple=ripple
+                for kind in duplicate:duplicate[kind]=[v for v in duplicate[kind] if v not in items]
+                return True
+        tl=NativeTimeline();self.mod.clear_duplicate(tl)
+        self.assertFalse(tl.ripple);self.assertTrue(all(not v for v in duplicate.values()))
+        self.assertEqual([len(original[k]) for k in ('video','audio','subtitle')],[2,1,1])
+
     def test_fusion_transport_methods_and_types_are_explicit(self):
         import resolve_lua
         self.assertIn('ImportFusionComp',resolve_lua.METHODS['TimelineItem'])

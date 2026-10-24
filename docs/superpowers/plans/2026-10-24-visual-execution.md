@@ -45,11 +45,11 @@ Files: create resolve_visuals.py; modify resolve_bridge.py, resolve_lua.py, reso
 
 Interfaces: load_bundle(edit, total_frames, rate), append_layers(pool, timeline, bundle, start_frame) -> native readback records. Add only fixed track/Fusion methods; generated comp import returns FusionComp, FindTool returns FusionTool, GetInput/limited StyledText SetInput support verification.
 
-- [ ] Write failing tests for V2/V3/V4 placement, video-only imports, wrong text/boundaries, missing bundle assets, update rejection for layered revisions and strict Fusion method allowlist.
-- [ ] Extend helper types/methods, restart via acknowledged Stop/setup in the existing dedicated QA project.
+- [x] Write failing tests for V2/V3/V4 placement, video-only imports, wrong text/boundaries, missing bundle assets, update rejection for layered revisions and strict Fusion method allowlist.
+- [x] Extend helper types/methods, restart via acknowledged Stop/setup in the existing dedicated QA project.
 - [x] Verify an actual generated Fusion caption, motion keyframe and editable text change in a separate synthetic probe timeline.
-- [ ] Append compiled layers, verify frame/text/keyframe readback, hash/manifest guards and original timeline preservation.
-- [ ] Run all adapter tests and commit.
+- [x] Append compiled layers, verify frame/text/keyframe readback, hash/manifest guards and original timeline preservation.
+- [x] Run all adapter tests and commit.
 
 ### Task 3: Board controls, correction and delivery proof
 
@@ -57,10 +57,10 @@ Files: edit-board.html/js/css; docs/edit-board.md, docs/resolve-integration.md, 
 
 - [x] Add explicit caption correction/enable, title/lower-third text, local B-roll upload/select and in-point controls within the approved UI.
 - [x] Exercise real handlers across save/approval replacements; restore existing keep/protect/zoom behavior.
-- [ ] Build original synthetic visual media; preview/approve/import with one normal correction and preserved earlier finishing.
-- [ ] Inspect preview stills and native Resolve viewer plus actual API timing/text/layer readback; record constraints honestly.
-- [ ] Run full Python tests, UI test, plugin validation and relevant demos. Independent whole-change review; fix material defects and record evidence.
-- [ ] Update maintained feature inventory and process, commit/push the existing feature branch.
+- [x] Build original synthetic visual media; preview/approve/import with one normal correction and preserved earlier finishing.
+- [x] Inspect preview stills and native Resolve viewer plus actual API timing/text/layer readback; record constraints honestly.
+- [x] Run full Python tests, UI test, plugin validation and relevant demos. Independent whole-change review; fix material defects and record evidence.
+- [x] Update maintained feature inventory and process, commit/push the existing feature branch.
 
 ## Execution ledger
 
@@ -68,5 +68,5 @@ Files: edit-board.html/js/css; docs/edit-board.md, docs/resolve-integration.md, 
 - Builder check resolved one ambiguity: preserve manual work in earlier timeline, do not promise cross-revision reconciliation.
 - Native execution in the existing feature checkout maintains the running app's known install path.
 
-- First native visual timeline verified with changed Text+ pixels, original audio and six independent visual clips. Repeat import exposed Resolve's render-lock stall; Media-page ordering regression added. Restart and native repeat acceptance remain pending, so tasks 2/3 are not complete.
-- Independent final review found three Important B-roll issues. Reproduced all three failures before fixing short prepared media, expiring staging paths and mutable-source races. Final suite: 101/101 plus UI/plugin checks. No deferred minor findings.
+- First native visual timeline verified with changed Text+ pixels, original audio and six independent visual clips. Repeat import exposed Resolve's render-lock stall; Media-page ordering regression added. The page switch did not resolve the native stall. Matching-format duplication with clearing of the new copy passed the repeat handoff and preserved the earlier manual Text+ edit; unmatched formats with existing Fusion now fail before mutation. Tasks 2/3 are complete for this synthetic slice.
+- Independent final review found three Important B-roll issues. Reproduced all three failures before fixing short prepared media, expiring staging paths and mutable-source races. Final suite: 105/105 plus UI/plugin checks. No deferred minor findings.

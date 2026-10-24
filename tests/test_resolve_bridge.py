@@ -114,6 +114,25 @@ class ResolveBridgeTests(unittest.TestCase):
         self.assertEqual(pages,['media','edit'])
         self.assertEqual(project.current,'manual-current-timeline')
 
+    def test_visual_revision_duplicates_matching_format_and_clears_only_the_copy(self):
+        project=self.resolve.project;template=Timeline('Earlier finish','template');original=object();template.items=[original]
+        template.settings={'timelineFrameRate':'29.97','timelineResolutionWidth':'640','timelineResolutionHeight':'360'}
+        project.timelines=[template];created=[];page=['edit']
+        self.resolve.GetCurrentPage=lambda:page[0]
+        self.resolve.OpenPage=lambda value:(page.__setitem__(0,value) or True)
+        def duplicate(name):
+            copy=Timeline(name,'copy');copy.settings=dict(template.settings);copy.items=list(template.items)
+            copy.SetSettings=lambda settings:(_ for _ in ()).throw(AssertionError('Must not re-enter Fusion settings synchronization'))
+            def clear(items,ripple):
+                self.assertFalse(ripple);self.assertEqual(items,[original]);copy.items=[];return True
+            copy.DeleteClips=clear;created.append(copy);project.timelines.append(copy);return copy
+        template.DuplicateTimeline=duplicate
+        with patch('ai_editor.resolve_visuals.load_bundle',return_value={'width':640,'height':360,'layers':[]}):
+            result=self.bridge.create_timeline(self.edit)
+        self.assertTrue(result['ok'],result);self.assertEqual(len(created),1)
+        self.assertEqual(template.items,[original]);self.assertEqual(len(created[0].items),3)
+        self.assertEqual(project.current,'manual-current-timeline');self.assertEqual(page[0],'edit')
+
     def test_status_only_reads_connection(self):
         self.assertTrue(self.bridge.status()['connected'])
         self.assertEqual(self.bridge.status()['version'], '21.1.1')

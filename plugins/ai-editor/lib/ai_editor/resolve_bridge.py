@@ -259,6 +259,13 @@ class ResolveBridge:
     def _create(self, edit, data, project, manager, name):
         path = edit / MANIFEST
         _require(not path.exists(), 'This edit already has a Resolve manifest. Use update; for a separate timeline use a separate edit folder.', 'already_managed')
+        template = None
+        if data.get('visual_bundle'):
+            try:
+                from . import resolve_visuals
+            except ImportError:
+                import resolve_visuals
+            template = resolve_visuals.matching_template(project, data['visual_bundle'], Fraction(*data['rate']))
         pool = project.GetMediaPool()
         media = _require(pool.ImportMedia([data['source']]), 'Resolve could not import the original source.')[0]
         props = media.GetClipProperty()
@@ -275,7 +282,7 @@ class ResolveBridge:
                 page = self.resolve.GetCurrentPage()
                 _require(self.resolve.OpenPage('media'), 'Open the Media page before configuring this visual timeline.')
                 _require(self.resolve.GetCurrentPage() == 'media', 'Resolve did not leave its active viewer.')
-            timeline = _require(pool.CreateEmptyTimeline(name or 'GenMedia ' + edit.name), 'Resolve could not create a new timeline.')
+            timeline = _require(template.DuplicateTimeline(name or 'GenMedia ' + edit.name) if template else pool.CreateEmptyTimeline(name or 'GenMedia ' + edit.name), 'Resolve could not create a new timeline.')
             manifest = dict(data, schema=1, state='incomplete', project_id=project.GetUniqueId(),
                             timeline_id=timeline.GetUniqueId(), timeline_name=timeline.GetName())
             _write(path, manifest)  # interruption is visible; never blindly replay a mutation
@@ -284,10 +291,16 @@ class ResolveBridge:
             settings = {'useCustomSettings': '1', 'timelineFrameRate': label}
             if data.get('visual_bundle'):
                 settings.update(timelineResolutionWidth=str(data['visual_bundle'].get('native_width',data['visual_bundle']['width'])), timelineResolutionHeight=str(data['visual_bundle'].get('native_height',data['visual_bundle']['height'])))
-            _require(timeline.SetSettings(settings),
-                     'Resolve rejected the dedicated timeline frame rate; timeline is incomplete.')
+            if template:
+                resolve_visuals.clear_duplicate(timeline)
+            else:
+                _require(timeline.SetSettings(settings),
+                         'Resolve rejected the dedicated timeline frame rate; timeline is incomplete.')
             _require(_rate(timeline.GetSettings()['timelineFrameRate']) == rate,
                      'Resolve did not apply the source frame rate; timeline is incomplete.')
+            if data.get('visual_bundle'):
+                native_settings = timeline.GetSettings()
+                _require(all(str(native_settings.get(k)) == str(settings[k]) for k in ('timelineResolutionWidth','timelineResolutionHeight')), 'Resolve did not retain the approved canvas; timeline is incomplete.')
             _require(project.SetCurrentTimeline(timeline), 'Resolve could not select the new dedicated timeline.')
             start = timeline.GetStartFrame()
             infos = [{'mediaPoolItem': media, 'startFrame': c['source_start'],

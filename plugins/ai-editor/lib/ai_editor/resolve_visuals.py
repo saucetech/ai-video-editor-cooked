@@ -59,3 +59,30 @@ def append_layers(pool, timeline, bundle, start):
                 record['animation_readback']=values
         records.append(record)
     return records
+
+
+def matching_template(project, bundle, rate):
+    """Avoid Resolve 21.1's Fusion render-lock stall when changing timeline settings."""
+    timelines=[project.GetTimelineByIndex(i) for i in range(1,project.GetTimelineCount()+1)]
+    width=bundle.get('native_width',bundle['width']);height=bundle.get('native_height',bundle['height'])
+    for timeline in timelines:
+        settings=timeline.GetSettings()
+        if (math.isclose(float(settings['timelineFrameRate']),float(rate),abs_tol=.005)
+                and int(settings['timelineResolutionWidth'])==width and int(settings['timelineResolutionHeight'])==height):
+            return timeline
+    for timeline in timelines:
+        for track in range(1,timeline.GetTrackCount('video')+1):
+            if any(clip.GetFusionCompCount() for clip in (timeline.GetItemListInTrack('video',track) or [])):
+                raise ValueError('This Resolve project has Fusion graphics but no compatible timeline format. Open a fresh dedicated project for this frame rate and canvas, then create a new approved revision. No timeline was created.')
+    return None
+
+
+def clear_duplicate(timeline):
+    """Only the newly duplicated timeline is changed; its source template stays intact."""
+    def items():
+        return [clip for kind in ('video','audio','subtitle')
+                for track in range(1,timeline.GetTrackCount(kind)+1)
+                for clip in (timeline.GetItemListInTrack(kind,track) or [])]
+    clips=items()
+    if clips and not timeline.DeleteClips(clips,False):raise ValueError('Resolve could not clear the new timeline copy. Inspect its incomplete manifest.')
+    if items():raise ValueError('The new timeline copy still contains clips. Inspect its incomplete manifest.')

@@ -17,9 +17,9 @@ METHODS = {
     'MediaPool': {'ImportMedia', 'CreateEmptyTimeline', 'AppendToTimeline'},
     'MediaPoolItem': {'GetUniqueId', 'GetClipProperty'},
     'Timeline': {'GetUniqueId', 'GetName', 'SetSettings', 'GetSettings', 'GetStartFrame',
-                 'GetTrackCount', 'GetItemListInTrack', 'AddTrack', 'SetTrackName', 'SetCurrentTimecode', 'GetCurrentTimecode'},
+                 'GetTrackCount', 'GetItemListInTrack', 'AddTrack', 'SetTrackName', 'SetCurrentTimecode', 'GetCurrentTimecode', 'DuplicateTimeline', 'DeleteClips'},
     'TimelineItem': {'GetUniqueId', 'GetStart', 'GetEnd', 'GetDuration', 'GetSpeed', 'GetClipEnabled',
-                     'GetLeftOffset', 'GetRightOffset', 'GetMediaPoolItem', 'GetProperties', 'SetProperties', 'ImportFusionComp', 'GetFusionCompByIndex'},
+                     'GetLeftOffset', 'GetRightOffset', 'GetMediaPoolItem', 'GetProperties', 'SetProperties', 'ImportFusionComp', 'GetFusionCompByIndex', 'GetFusionCompCount'},
     'FusionComp': {'FindTool'},
     'FusionTool': {'GetInput', 'SetInput'},
 }
