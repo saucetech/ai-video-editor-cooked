@@ -2,6 +2,8 @@
 import hashlib
 import json
 import math
+import shutil
+import uuid
 import subprocess
 from fractions import Fraction
 from pathlib import Path
@@ -39,6 +41,34 @@ def owned_video(value, roots):
     return path
 
 
+def copy_checked(source, destination, expected):
+    """Copy bytes before preparation; the renderer never reopens a mutable selection."""
+    temporary = destination.with_name(destination.name + '.' + uuid.uuid4().hex + '.tmp')
+    try:
+        shutil.copyfile(source, temporary)
+        if file_hash(temporary) != expected:
+            raise ValueError('Selected B-roll changed while copying. Select it again.')
+        temporary.replace(destination)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return destination
+
+
+def promote_staged(path, roots):
+    path = owned_video(str(path), roots)
+    for root in map(lambda r: Path(r).resolve(), roots):
+        if path.is_relative_to(root) and path.relative_to(root).parts[0] == '.staged':
+            digest = file_hash(path)
+            destination = (root / 'assets/broll' / digest / path.name).resolve()
+            if not destination.is_relative_to(root):raise ValueError('B-roll storage must stay inside the library.')
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            if destination.exists():
+                if file_hash(destination) != digest:raise ValueError('Saved B-roll changed. Add the original again.')
+                return destination
+            return copy_checked(path, destination, digest)
+    return path
+
+
 def validate_row(row, roots):
     row = row_defaults(row)
     if type(row['caption_enabled']) is not bool: raise ValueError('Caption enabled must be checked or unchecked.')
@@ -53,7 +83,7 @@ def validate_row(row, roots):
     if type(offset) not in (int, float) or not math.isfinite(offset) or offset < 0: raise ValueError('B-roll in-point must be a nonnegative number of seconds.')
     if not isinstance(row['broll'], str): raise ValueError('Choose a local B-roll video.')
     if row['broll']:
-        path = owned_video(row['broll'], roots)
+        path = promote_staged(row['broll'], roots)
         row['broll'] = str(path)
         row['broll_identity'] = file_hash(path)
     else: row.pop('broll_identity', None)
@@ -155,10 +185,14 @@ def compile_bundle(path, rows, report):
         if row['broll']:
             original=Path(row['broll'])
             if file_hash(original)!=row.get('broll_identity'):raise ValueError('Selected B-roll changed. Select it again before previewing.')
-            details=media_info(original)
-            if row['broll_start']+seconds > details['duration'] + .5/fps:raise ValueError('B-roll is shorter than this passage from the selected in-point.')
+            snapshot=folder/f"original-broll-{row['broll_identity']}{original.suffix.lower()}"
+            if not snapshot.exists():copy_checked(original,snapshot,row['broll_identity'])
+            details=media_info(snapshot)
+            if row['broll_start']+seconds > details['duration'] + 1e-6:raise ValueError('B-roll is shorter than this passage from the selected in-point.')
             out=folder/f'broll-{index}.mov'
-            edit_board.run_renderer(['ffmpeg','-v','error','-y','-ss',str(row['broll_start']),'-i',str(original),'-an','-vf',f"fps={rate},scale={info['width']}:{info['height']}:force_original_aspect_ratio=increase,crop={info['width']}:{info['height']},setsar=1",'-frames:v',str(duration),'-c:v','prores_ks','-profile:v','2',str(out)])
+            edit_board.run_renderer(['ffmpeg','-v','error','-y','-ss',str(row['broll_start']),'-i',str(snapshot),'-an','-vf',f"fps={rate},scale={info['width']}:{info['height']}:force_original_aspect_ratio=increase,crop={info['width']}:{info['height']},setsar=1",'-frames:v',str(duration),'-c:v','prores_ks','-profile:v','2',str(out)])
+            count=json.loads(subprocess.check_output(['ffprobe','-v','error','-select_streams','v:0','-count_frames','-show_entries','stream=nb_read_frames','-of','json',str(out)],timeout=60))
+            if int(count['streams'][0]['nb_read_frames']) != duration:raise ValueError('Prepared B-roll has fewer frames than this passage. Choose an earlier in-point or a longer clip.')
             bundle['layers'].append({'kind':'broll','track':2,'start':row['start'],'end':row['end'],'media':out.relative_to(path).as_posix(),'source_start':0,'origin':str(original),'original_in':row['broll_start']})
         for kind,text in [('caption',row['caption'] if row['caption_enabled'] else ''),(row['motion'],row['motion_text'] if row['motion']!='none' else '')]:
             if not text.strip():continue

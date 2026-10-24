@@ -2,6 +2,8 @@ import importlib
 import json
 import sys
 import subprocess
+import shutil
+from unittest.mock import patch
 import tempfile
 import unittest
 from pathlib import Path
@@ -74,6 +76,42 @@ class BoardVisualTests(unittest.TestCase):
             for layer in bundle['layers']:
                 carrier=self.mod.media_info(path/layer['media'])
                 self.assertEqual((carrier['width'],carrier['height']),(1600,900))
+
+    def test_fractional_inpoint_cannot_approve_a_short_broll_clip(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp);source=path/'source.mp4'
+            subprocess.run(['ffmpeg','-v','error','-f','lavfi','-i','color=c=red:s=320x180:r=30',
+                '-frames:v','30','-c:v','libx264',str(source)],check=True)
+            row=self.mod.validate_row(dict(start_frame=0,end_frame=30,keep=True,zoom=1,broll=str(source),broll_start=.01),[path])
+            with self.assertRaisesRegex(ValueError,'shorter|frames'):
+                self.mod.compile_bundle(path,[row],{'source':str(source),'fps':30})
+
+    def test_saved_staged_broll_survives_staging_cleanup(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp);stage=path/'.staged/upload';stage.mkdir(parents=True);clip=stage/'shot.mp4';clip.write_bytes(b'owned video')
+            row=self.mod.validate_row({'broll':str(clip)},[path])
+            shutil.rmtree(path/'.staged')
+            self.assertTrue(Path(row['broll']).is_file(),'Saved B-roll must live outside expiring upload staging')
+            self.mod.validate_row(row,[path])
+
+    def test_broll_conversion_reads_a_verified_revision_snapshot(self):
+        import edit_board
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp);source=path/'source.mp4';replacement=path/'blue.mp4'
+            for file,color in [(source,'red'),(replacement,'blue')]:
+                subprocess.run(['ffmpeg','-v','error','-f','lavfi','-i',f'color=c={color}:s=320x180:r=30',
+                    '-frames:v','30','-c:v','libx264',str(file)],check=True)
+            row=self.mod.validate_row(dict(start_frame=0,end_frame=15,keep=True,zoom=1,broll=str(source)),[path])
+            render=edit_board.run_renderer
+            def replace_before_conversion(args,*a,**kw):
+                shutil.copyfile(replacement,source)
+                return render(args,*a,**kw)
+            with patch.object(edit_board,'run_renderer',side_effect=replace_before_conversion):
+                bundle=self.mod.compile_bundle(path,[row],{'source':str(source),'fps':30})
+            pixel=subprocess.check_output(['ffmpeg','-v','error','-i',str(path/bundle['layers'][0]['media']),
+                '-vf','scale=1:1','-frames:v','1','-f','rawvideo','-pix_fmt','rgb24','-'])
+            self.assertGreater(pixel[0],pixel[2]+100,'The selected red footage must not be silently replaced by blue')
+            self.mod.verify_bundle(path)
 
     def test_bundle_tampering_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:

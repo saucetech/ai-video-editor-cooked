@@ -33,11 +33,11 @@ Files: create board_visuals.py; modify edit_board.py, edit_board_http.py; tests/
 
 Interfaces: row_defaults(row), validate_row(row, roots), compile_bundle(revision_dir, rows, report), verify_bundle(revision_dir), render_preview(revision_dir). Rows add caption_enabled/caption/motion/motion_text/broll/broll_start. Asset roots are the configured library and existing upload staging folder.
 
-- [ ] Write failing tests for removed-interval mapping, legacy defaults, native composition text escaping, bad offsets/paths/short media, immutable asset tampering, approval invalidation.
-- [ ] Run focused tests and observe failures.
-- [ ] Implement validation, copied/conformed assets, exact frame cues, SRT, generated Text+ compositions and integrity manifest.
-- [ ] Render captions/motion/zoom/B-roll to preview with original source audio; verify output duration/audio and visible changed frames.
-- [ ] Run tests and commit.
+- [x] Write failing tests for removed-interval mapping, legacy defaults, native composition text escaping, bad offsets/paths/short media, immutable asset tampering, approval invalidation.
+- [x] Run focused tests and observe failures.
+- [x] Implement validation, copied/conformed assets, exact frame cues, SRT, generated Text+ compositions and integrity manifest.
+- [x] Render captions/motion/zoom/B-roll to preview with original source audio; verify output duration/audio and visible changed frames.
+- [x] Run tests and commit.
 
 ### Task 2: Native editable layers
 
@@ -47,7 +47,7 @@ Interfaces: load_bundle(edit, total_frames, rate), append_layers(pool, timeline,
 
 - [ ] Write failing tests for V2/V3/V4 placement, video-only imports, wrong text/boundaries, missing bundle assets, update rejection for layered revisions and strict Fusion method allowlist.
 - [ ] Extend helper types/methods, restart via acknowledged Stop/setup in the existing dedicated QA project.
-- [ ] Verify an actual generated Fusion caption, motion keyframe and editable text change in a separate synthetic probe timeline.
+- [x] Verify an actual generated Fusion caption, motion keyframe and editable text change in a separate synthetic probe timeline.
 - [ ] Append compiled layers, verify frame/text/keyframe readback, hash/manifest guards and original timeline preservation.
 - [ ] Run all adapter tests and commit.
 
@@ -55,8 +55,8 @@ Interfaces: load_bundle(edit, total_frames, rate), append_layers(pool, timeline,
 
 Files: edit-board.html/js/css; docs/edit-board.md, docs/resolve-integration.md, docs/ai-edit-suite-coverage.md; tests/test_edit_board_ui.mjs.
 
-- [ ] Add explicit caption correction/enable, title/lower-third text, local B-roll upload/select and in-point controls within the approved UI.
-- [ ] Exercise real handlers across save/approval replacements; restore existing keep/protect/zoom behavior.
+- [x] Add explicit caption correction/enable, title/lower-third text, local B-roll upload/select and in-point controls within the approved UI.
+- [x] Exercise real handlers across save/approval replacements; restore existing keep/protect/zoom behavior.
 - [ ] Build original synthetic visual media; preview/approve/import with one normal correction and preserved earlier finishing.
 - [ ] Inspect preview stills and native Resolve viewer plus actual API timing/text/layer readback; record constraints honestly.
 - [ ] Run full Python tests, UI test, plugin validation and relevant demos. Independent whole-change review; fix material defects and record evidence.
@@ -67,3 +67,6 @@ Files: edit-board.html/js/css; docs/edit-board.md, docs/resolve-integration.md, 
 - Owner explicitly chose editable text/motion plus native B-roll. Current request executes the existing milestone 2; no new feature-priority approval needed.
 - Builder check resolved one ambiguity: preserve manual work in earlier timeline, do not promise cross-revision reconciliation.
 - Native execution in the existing feature checkout maintains the running app's known install path.
+
+- First native visual timeline verified with changed Text+ pixels, original audio and six independent visual clips. Repeat import exposed Resolve's render-lock stall; Media-page ordering regression added. Restart and native repeat acceptance remain pending, so tasks 2/3 are not complete.
+- Independent final review found three Important B-roll issues. Reproduced all three failures before fixing short prepared media, expiring staging paths and mutable-source races. Final suite: 101/101 plus UI/plugin checks. No deferred minor findings.

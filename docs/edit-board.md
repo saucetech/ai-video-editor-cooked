@@ -25,7 +25,7 @@ Run the normal cut workflow from **New video** with your own recording. Once its
 
 1. Open a kept passage's **Captions & visuals**. Proofread **Caption text**, then enable **Show caption**. This displays one corrected caption for the whole passage, based on the available transcript. It is not word-timed karaoke.
 2. Choose **Fade title** or **Fade lower third** and enter its text. These are original editable text-panel recipes with fade-in/out keyframes.
-3. Choose **Add B-roll** to copy a local video into the library. Select it on a passage and set its in-point in seconds. The clip must cover the full passage from that point. B-roll replaces the picture while retaining source audio; its own audio is excluded.
+3. Choose **Add B-roll** to copy a local video into durable library storage. Saved selections survive temporary-upload cleanup. Select it on a passage and set its in-point in seconds. The clip must cover the full passage from that point. B-roll replaces the picture while retaining source audio; its own audio is excluded.
 4. Save, build and watch the preview. It includes enabled captions, motion, B-roll and static zooms. **Download captions · SRT** exports the corrected passage timing.
 5. Approve and create the Resolve timeline. V1/A1 retain original source clips/audio, V2 contains ordinary prepared B-roll clips, V3 contains editable motion Text+ compositions, and V4 contains editable caption Text+ compositions.
 6. In Resolve, select a text clip and open Fusion. **GenMediaText** controls text/font/size/position; **GenMediaOutput** and **GenMediaOpacity** control the motion fade and keyframes. The blank timing carrier contains no baked text. Captions are Text+ clips, not a native Subtitle track.
@@ -36,7 +36,7 @@ Visual direction and emphasis remain planning notes. Music, animated source zoom
 
 ## Revision and recovery behavior
 
-Original source/cut/plan files are unchanged. The board saves `board.json`; previews live under `board-revisions/<revision>/` with conventional decisions, report and plan files, a cut preview, render log and native manifest. Visual revisions additionally contain captions.srt, visuals.json and hashed prepared media, transparent carriers and generated compositions. Changed visual assets block approval and native creation. A source/input fingerprint ties the board to its original cut. If those inputs change, use a separate edit folder for the new cut; the board refuses to apply stale decisions.
+Original source/cut/plan files are unchanged. The board saves `board.json`; previews live under `board-revisions/<revision>/` with conventional decisions, report and plan files, a cut preview, render log and native manifest. Visual revisions additionally contain captions.srt, visuals.json and hashed prepared media, transparent carriers and generated compositions. Changed visual assets block approval and native creation. Each revision snapshots its selected B-roll sources before conversion and verifies prepared frame counts. Full selected source copies are retained for reproducibility; large B-roll files increase local storage and preparation work. A source/input fingerprint ties the board to its original cut. If those inputs change, use a separate edit folder for the new cut; the board refuses to apply stale decisions.
 
 Saves check the expected version. A stale tab must reload before overwriting newer choices. **Reload** intentionally discards unsaved browser changes. A selected project is retained in the page URL in the current UI.
 

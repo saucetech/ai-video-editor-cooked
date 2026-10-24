@@ -12,7 +12,7 @@ HERE = Path(__file__).resolve().parent
 ASSETS = {'/edit-board': ('edit-board.html', 'text/html; charset=utf-8'),
           '/edit-board.js': ('edit-board.js', 'text/javascript; charset=utf-8'),
           '/edit-board.css': ('edit-board.css', 'text/css; charset=utf-8')}
-PATHS = {'/board/projects', '/board/assets', '/board/load', '/board/save', '/board/preview', '/board/approve',
+PATHS = {'/board/projects', '/board/import-asset', '/board/assets', '/board/load', '/board/save', '/board/preview', '/board/approve',
          '/board/resolve', '/board/sample', '/board/media', '/board/captions'}
 
 
@@ -61,7 +61,7 @@ def route(handler, method, path, body, home):
         if path == '/board/assets' and method == 'GET':
             root = Path(home.read()['root']).resolve()
             files = []
-            for folder in ('videos', 'assets', '.staged'):
+            for folder in ('videos', 'assets'):
                 for file in (root / folder).rglob('*'):
                     if len(files) >= 200: break
                     if file.is_file() and file.suffix.lower() in board.visuals.VIDEO_EXTS and file.resolve().is_relative_to(root):
@@ -98,7 +98,10 @@ def route(handler, method, path, body, home):
         if not isinstance(body, dict): raise ValueError('Expected a board request object.')
         import live
         with live.busy():
-            if path == '/board/sample': result = board.create_sample(Path(home.read()['root']))
+            if path == '/board/import-asset':
+                asset = board.visuals.promote_staged(body.get('path', ''), [Path(home.read()['root'])])
+                result = {'path':str(asset),'name':asset.name}
+            elif path == '/board/sample': result = board.create_sample(Path(home.read()['root']))
             else:
                 edit = integrations_http.edit_path(body.get('edit'), home)
                 version, rid = body.get('version'), body.get('revision')

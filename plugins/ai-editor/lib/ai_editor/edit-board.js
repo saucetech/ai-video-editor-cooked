@@ -29,7 +29,7 @@
     $('approve').disabled = busy || dirty || !current || rev.state !== 'ready' || state.approved_revision === selected;
     $('send-resolve').disabled = busy || dirty || !current || state.approved_revision !== selected || rev.native_state === 'sending' || rev.native_state === 'blocked';
     $('send-resolve').textContent = rev?.native_state === 'ready' ? 'View timeline details' : 'Create Resolve timeline';
-    $('resolve-status').textContent = rev?.native_state === 'ready' ? 'Timeline created. Open Resolve to continue finishing.' : state?.approved_revision === selected && selected ? 'Preview approved. Ready to create a separate timeline.' : 'Approve a preview to create its timeline.';
+    $('resolve-status').textContent = rev?.native_state === 'blocked' ? 'Inspect the incomplete Resolve timeline before continuing. This revision will not be retried.' : rev?.native_state === 'sending' ? 'Creating the timeline. Leave the Resolve connection running.' : rev?.native_state === 'ready' ? 'Timeline created. Open Resolve to continue finishing.' : state?.approved_revision === selected && selected ? 'Preview approved. Ready to create a separate timeline.' : 'Approve a preview to create its timeline.';
     for (const id of ['project','reload','sample','revision','setup-resolve','check-resolve','upload-broll']) $(id).disabled = busy;
     $('rows').querySelectorAll('input,textarea,select,button').forEach(el => { el.disabled = busy || (el.dataset.keep === 'true' && state.rows[Number(el.dataset.index)].protected); });
     $('sequence').querySelectorAll('button').forEach(el => { el.disabled = busy; });
@@ -132,7 +132,7 @@
   }
   async function loadAssets() {assets=(await api('/board/assets')).assets;}
   $('upload-broll').onclick=()=>{if(!busy)$('broll-file').click();};
-  $('broll-file').onchange=()=>action('Copying B-roll into your local library…',async()=>{const file=$('broll-file').files?.[0];if(!file)return;const response=await fetch('/upload?stage=1&name='+encodeURIComponent(file.name),{method:'POST',body:file});const result=await response.json();if(!response.ok||result.error)throw new Error(result.error||'The local copy failed.');await loadAssets();if(state)drawRows();$('broll-file').value='';notice('B-roll added. Choose it in a passage’s Captions & visuals.');});
+  $('broll-file').onchange=()=>action('Copying B-roll into your local library…',async()=>{const file=$('broll-file').files?.[0];if(!file)return;const response=await fetch('/upload?stage=1&name='+encodeURIComponent(file.name),{method:'POST',body:file});const result=await response.json();if(!response.ok||result.error)throw new Error(result.error||'The local copy failed.');await api('/board/import-asset',{path:result.path});await loadAssets();if(state)drawRows();$('broll-file').value='';notice('B-roll added. Choose it in a passage’s Captions & visuals.');});
   async function projects(chosen='') {
     const data=await api('/board/projects'), select=$('project');select.replaceChildren(new Option('Choose a project',''));
     data.edits.forEach(edit=>select.append(new Option(edit.name,edit.path)));if(chosen)select.value=chosen;

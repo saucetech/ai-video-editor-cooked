@@ -60,4 +60,8 @@ assert.equal(savedRows[0].caption,'Corrected caption');assert.equal(savedRows[0]
 assert.equal(savedRows[0].motion,'title');assert.equal(savedRows[0].motion_text,'Editable title');assert.equal(savedRows[0].broll,'/owned/broll.mp4');
 assert.equal(savedRows[0].note,'Keep this correction after approval','Approval must not leave handlers attached to discarded row objects');
 assert.equal(source.approved_revision,null);
-console.log('edit board UI lifecycle: correction after approval persists');
+source.approved_revision='preview';source.revisions[0].board_version=source.version;source.revisions[0].native_state='blocked';
+await ids.get('reload').onclick();await settle();
+assert.equal(ids.get('send-resolve').disabled,true);
+assert.match(ids.get('resolve-status').textContent,/Inspect|inspection|incomplete/,'Blocked native work must not be described as ready');
+console.log('edit board UI lifecycle: corrections persist and incomplete native work stays blocked');
