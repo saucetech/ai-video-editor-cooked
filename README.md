@@ -26,8 +26,9 @@ Open **Resolve & Higgsfield** in the same panel for connection checks and action
 
 - **Resolve:** create a separate native timeline from a cooked source cut, or update managed zooms.
   The adapter detects manual changes before updating. Structural recuts need a new timeline;
-  graphics and captions are not claimed as native Fusion controls. The local helper script supports
-  an internal connection when external scripting is unavailable. See [Resolve integration](docs/resolve-integration.md).
+  graphics and captions are not claimed as native Fusion controls. On macOS, use **Set up local Resolve connection** and paste its command into
+  **Workspace → Console** once per Resolve session. This Lua route was verified on free Resolve 21.1.1,
+  including source cuts/audio and a zoom update preserving Pan. Use **Stop Resolve connection** to stop it. See [Resolve integration](docs/resolve-integration.md).
 - **Higgsfield:** list current results, explicitly import completed media into the library, load models,
   get a text-only credit quote and separately confirm a generation. Connection checks and quotes do
   not generate assets. Quotes expire and can be submitted only once. See [Higgsfield integration](docs/higgsfield-integration.md).

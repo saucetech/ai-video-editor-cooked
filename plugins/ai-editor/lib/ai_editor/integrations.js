@@ -7,6 +7,7 @@
     <button id="int-check" type="button">Check connections</button><p id="int-status" role="status"></p>
     <h3 style="font-size:15px">DaVinci Resolve</h3><p class="cx-muted">Creates a separate native timeline from an approved source cut. Checks for manual changes before updating managed zooms.</p>
     <button id="int-resolve-setup" type="button">Set up local Resolve connection</button>
+    <button id="int-resolve-stop" type="button">Stop Resolve connection</button>
     <div class="cx-row"><label for="int-edit">Source-cut edit</label><button id="int-refresh-edits" type="button">Refresh</button></div>
     <select id="int-edit" aria-label="Source-cut edit" style="width:100%;padding:8px"><option value="">Choose an edit</option></select>
     <div class="cx-row"><button id="int-resolve-create" type="button">Create timeline</button><button id="int-resolve-update" type="button">Update managed zooms</button></div>
@@ -53,7 +54,10 @@
     const count = await edits(); el('int-message').textContent = count ? 'Source-cut edits refreshed.' : 'No source-cut edits yet. Make and approve a cut first.';
   });
   bind('int-resolve-setup', async () => {
-    const result = await api('resolve/setup', {}); el('int-message').textContent = result.message + '\n' + result.path;
+    const result = await api('resolve/setup', {}); el('int-message').textContent = result.message + '\n\n' + (result.console_command || result.path);
+  });
+  bind('int-resolve-stop', async () => {
+    const result = await api('resolve/stop', {}); el('int-message').textContent = result.message; el('int-status').textContent = result.stopped ? 'Resolve connection stopped.' : 'Resolve stop requested; waiting for acknowledgement.';
   });
   for (const [id, path] of [['int-resolve-create','create'], ['int-resolve-update','update']]) bind(id, async () => {
     const result = await api('resolve/' + path, {edit:el('int-edit').value}); el('int-message').textContent = result.message || 'Resolve timeline updated.';

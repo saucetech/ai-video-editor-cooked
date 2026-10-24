@@ -19,8 +19,9 @@ from pathlib import Path
 MANIFEST = 'resolve-manifest.json'
 RESOLVE_PYTHON = '/Applications/DaVinci Resolve/DaVinci Resolve.app/Contents/Applications/ResolvePython'
 PREFIX = 'COOKED_RESOLVE_JSON:'
-DIAGNOSTIC = ('Open Resolve and a project, then run Workspace > Scripts > Utility > cooked_resolve_bridge '
-              '(install the local bridge first; restart Resolve if it is not listed). '
+DIAGNOSTIC = ('Open Resolve and a dedicated project. Set up the local connection in cooked, then paste its '
+              'dofile command into Workspace > Console once per Resolve session. '
+              'Free Resolve 21.1 may omit Python scripts and not execute menu scripts. '
               'Resolve Studio can alternatively use Preferences > System > General > External scripting: Local. '
               'No scripting preference is changed automatically.')
 
@@ -154,6 +155,19 @@ class ResolveBridge:
 
     def _call(self, action, edit_dir=None, name=None):
         if self.resolve is None:
+            try:
+                from . import resolve_lua
+            except ImportError:
+                import resolve_lua
+            if resolve_lua.available(self.runtime):
+                try:
+                    with resolve_lua.Session(self.runtime, timeout=self.timeout) as session:
+                        return ResolveBridge(resolve=session.resolve, runtime=self.runtime)._call(action, edit_dir, name)
+                except (RuntimeError, OSError, ValueError) as exc:
+                    return self._failure(action, 'lua_error', str(exc))
+            if resolve_lua.needs_attention(self.runtime):
+                return self._failure(action, 'lua_unavailable',
+                    'The Lua helper is busy, stale or requires recovery. No other transport was used. Inspect Resolve and the manifest, then Stop the connection before restarting its Console command.')
             embedded = self._embedded_call(action, edit_dir, name)
             if embedded is not None:
                 return embedded
@@ -239,7 +253,7 @@ class ResolveBridge:
         path = edit / MANIFEST
         _require(not path.exists(), 'This edit already has a Resolve manifest. Use update; for a separate timeline use a separate edit folder.', 'already_managed')
         pool = project.GetMediaPool()
-        media = _require(pool.ImportMedia([{'FilePath': data['source']}]), 'Resolve could not import the original source.')[0]
+        media = _require(pool.ImportMedia([data['source']]), 'Resolve could not import the original source.')[0]
         props = media.GetClipProperty()
         _require(Path(props['File Path']).resolve() == Path(data['source']), 'Resolve imported a different source path.', 'invalid_edit')
         _require(_rate(props['FPS']) == Fraction(*data['rate']), 'Source and cut frame rates differ.', 'invalid_edit')
@@ -261,7 +275,7 @@ class ResolveBridge:
             _require(project.SetCurrentTimeline(timeline), 'Resolve could not select the new dedicated timeline.')
             start = timeline.GetStartFrame()
             infos = [{'mediaPoolItem': media, 'startFrame': c['source_start'],
-                      'endFrame': c['source_end'] - 1, 'recordFrame': start + c['record']}
+                      'endFrame': c['source_end'], 'recordFrame': start + c['record']}
                      for c in data['clips']]
             _require(pool.AppendToTimeline(infos), 'Resolve did not append the source ranges; timeline is incomplete.')
             rows, objects = _snapshot(timeline)
@@ -415,13 +429,26 @@ def install_internal_bridge(runtime=None, scripts_dir=None):
               'from ai_editor.resolve_bridge import start_embedded\n'
               'print(start_embedded(resolve, runtime=' + repr(str(runtime)) + '))\n')
     path.write_text(source, encoding='utf-8')
-    return {'ok': True, 'path': str(path), 'message':
-            'In Resolve, open a dedicated project, then Workspace > Scripts > Utility > cooked_resolve_bridge. Restart Resolve if the new script is not listed. Start this script once after each Resolve restart.'}
+    try:
+        from . import resolve_lua
+    except ImportError:
+        import resolve_lua
+    lua_path, command = resolve_lua.install(runtime, utility)
+    return {'ok': True, 'path': str(path), 'lua_path': str(lua_path), 'console_command': command, 'message':
+            'In Resolve, open a dedicated project, then Workspace > Console. Paste the command below and press Return. Leave that Console session running. This macOS Lua connection works without Python or changing scripting preferences.'}
 
 
 def status(): return ResolveBridge().status()
 def create_timeline(edit_dir: Path, name: str | None = None): return ResolveBridge().create_timeline(edit_dir, name)
 def update_timeline(edit_dir: Path): return ResolveBridge().update_timeline(edit_dir)
+
+
+def stop_local_connection():
+    try:
+        from . import resolve_lua
+    except ImportError:
+        import resolve_lua
+    return resolve_lua.stop(_runtime())
 
 
 def _worker():

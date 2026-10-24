@@ -4,7 +4,7 @@ from pathlib import Path
 import higgsfield_bridge as higgsfield
 import resolve_bridge as resolve
 
-PATHS = {"/integrations/status", "/integrations/edits", "/integrations/resolve/setup",
+PATHS = {"/integrations/status", "/integrations/edits", "/integrations/resolve/setup", "/integrations/resolve/stop",
          "/integrations/resolve/create", "/integrations/resolve/update", "/integrations/higgsfield/recent",
          "/integrations/higgsfield/import", "/integrations/higgsfield/models", "/integrations/higgsfield/quote",
          "/integrations/higgsfield/generate"}
@@ -39,6 +39,8 @@ def route(handler, method, path, body, home):
             return True
         elif path == "/integrations/resolve/setup":
             result = resolve.install_internal_bridge()
+        elif path == "/integrations/resolve/stop":
+            result = resolve.stop_local_connection()
         elif path == "/integrations/resolve/create":
             name = body.get("name")
             if name is not None and (not isinstance(name, str) or len(name) > 120):

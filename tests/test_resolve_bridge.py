@@ -18,11 +18,11 @@ class Item:
     def GetUniqueId(self): return self.uid
     def GetStart(self): return self.info['recordFrame']
     def GetEnd(self): return self.GetStart() + self.GetDuration()
-    def GetDuration(self): return self.info['endFrame'] - self.info['startFrame'] + 1
+    def GetDuration(self): return self.info['endFrame'] - self.info['startFrame']
     def GetSpeed(self): return {'speed': 100.0, 'reverse': False}
     def GetClipEnabled(self): return True
     def GetLeftOffset(self): return self.info['startFrame']
-    def GetRightOffset(self): return 300 - self.info['endFrame'] - 1
+    def GetRightOffset(self): return 300 - self.info['endFrame']
     def GetMediaPoolItem(self): return self.info['mediaPoolItem']
     def GetProperties(self): return dict(self.props)
     def SetProperties(self, props): self.props.update(props); return True
@@ -53,7 +53,9 @@ class Project:
     def GetCurrentTimeline(self): return self.current
     def SetCurrentTimeline(self, timeline): self.current = timeline; self.switches.append(timeline); return True
     def GetMediaPool(self): return self
-    def ImportMedia(self, clips): return [Media(clips[0]['FilePath'])]
+    def ImportMedia(self, clips):
+        # Video uses the file-path overload. FilePath dictionaries describe image sequences.
+        return [Media(clips[0])] if isinstance(clips[0], str) else []
     def CreateEmptyTimeline(self, name):
         t = Timeline(name, 'timeline-' + str(len(self.timelines)))
         self.timelines.append(t); self.current = t
@@ -104,7 +106,7 @@ class ResolveBridgeTests(unittest.TestCase):
     def test_native_original_ranges_exclusive_end_and_ntsc(self):
         timeline = self.create()
         self.assertEqual([(x['startFrame'], x['endFrame'], x['recordFrame']) for x in self.resolve.project.appends],
-                         [(30, 59, 0), (60, 89, 30), (150, 209, 60)])
+                         [(30, 60, 0), (60, 90, 30), (150, 210, 60)])
         self.assertEqual(timeline.settings['timelineFrameRate'], '29.97')
         self.assertEqual(timeline.items[1].props['ZoomX'], 1.2)
         manifest = json.loads((self.edit / 'resolve-manifest.json').read_text(encoding='utf-8'))
@@ -208,11 +210,28 @@ class ResolveBridgeTests(unittest.TestCase):
         self.assertIn('start_embedded', source)
         self.assertNotIn('token', source)
         compile(source, result['path'], 'exec')
+        self.assertTrue(Path(result['lua_path']).is_file())
+        self.assertIn('dofile(', result['console_command'])
+        self.assertEqual((self.edit / 'runtime/resolve-lua/helper.lua').stat().st_mode & 0o777, 0o600)
 
     def test_subprocess_failure_is_actionable(self):
-        bridge = self.mod.ResolveBridge(command=['missing-resolve-python'])
+        bridge = self.mod.ResolveBridge(command=['missing-resolve-python'], runtime=self.edit / 'isolated-runtime')
         result = bridge.status()
         self.assertFalse(result['connected']); self.assertTrue(result['message'])
+
+    def test_stale_lua_or_quarantine_never_falls_through_to_another_transport(self):
+        import os
+        folder = self.edit / 'isolated-runtime/resolve-lua'
+        folder.mkdir(parents=True)
+        ready = folder / 'ready.json'
+        ready.write_text('{"generation":"busy-helper"}', encoding='utf-8')
+        os.utime(ready, (1,1))
+        bridge = self.mod.ResolveBridge(runtime=folder.parent)
+        with patch.object(self.mod.subprocess, 'run', side_effect=AssertionError('must not replay through Python')):
+            self.assertEqual(bridge.create_timeline(self.edit)['code'], 'lua_unavailable')
+            ready.write_text('{}', encoding='utf-8')
+            (folder/'client.lock').write_text('{"state":"quarantined"}', encoding='utf-8')
+            self.assertEqual(bridge.create_timeline(self.edit)['code'], 'lua_unavailable')
 
 
 if __name__ == '__main__': unittest.main()
