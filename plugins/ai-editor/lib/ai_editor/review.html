@@ -970,6 +970,7 @@ function steps(){
 // the new Claude review.py opened for this edit in the last 15 min (Submit with no Claude on it, or Open a new Claude)
 const newClaude=S=>!S.listening&&S.claude&&Date.now()/1000-S.claude.at<900?(S.claude.how==='codex'?'Your review action was queued for Codex. Open the Codex panel for progress.':S.claude.opened?{typed:'Your notes went to the Claude already open in Terminal',resumed:'The Claude that worked on this opens again in Terminal'}[S.claude.how]||'A new Claude is starting in its own Terminal window':'Run this in a terminal to start Claude: '+S.claude.command):'';
 function listenText(S){
+  if(S.agent_backend==='codex'&&!S.sent&&!S.busy&&!S.listening)return 'Ready for feedback. Submit sends it to Codex.';
   const text=listenProviderText(S);return S.agent_backend==='codex'?text.replace(/\bClaude\b/g,'Codex').replace('in its own Terminal window','in the Codex panel').replace('Submitting opens a new Codex.','Submitting queues your request for Codex.'):text;
 }
 function listenProviderText(S){
@@ -991,6 +992,7 @@ function providerLabels(){
     while(walk.nextNode())walk.currentNode.textContent=walk.currentNode.textContent.replace(/\bClaude\b/g,'Codex');
     if(el.title)el.title=el.title.replace(/\bClaude\b/g,'Codex');
   }
+  for(const el of document.querySelectorAll('#list .cr'))if(el.firstChild?.nodeType===Node.TEXT_NODE)el.firstChild.textContent=el.firstChild.textContent.replace(/^Claude:/,'Codex:');
 }
 function render(){
   if(!S)return;
