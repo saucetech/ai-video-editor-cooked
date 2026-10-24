@@ -10,6 +10,7 @@
     <button id="int-resolve-stop" type="button">Stop Resolve connection</button>
     <div class="cx-row"><label for="int-edit">Source-cut edit</label><button id="int-refresh-edits" type="button">Refresh</button></div>
     <select id="int-edit" aria-label="Source-cut edit" style="width:100%;padding:8px"><option value="">Choose an edit</option></select>
+    <button id="int-board" type="button">Open edit board</button>
     <div class="cx-row"><button id="int-resolve-create" type="button">Create timeline</button><button id="int-resolve-update" type="button">Update managed zooms</button></div>
     <h3 style="font-size:15px">Higgsfield assets</h3><p class="cx-muted">Import an existing result, or request a credit quote before generating.</p>
     <div class="cx-row"><select id="int-kind" aria-label="Higgsfield media type"><option value="video">Video</option><option value="image">Image</option></select><button id="int-results" type="button">Load recent results</button></div>
@@ -52,6 +53,17 @@
   });
   bind('int-refresh-edits', async () => {
     const count = await edits(); el('int-message').textContent = count ? 'Source-cut edits refreshed.' : 'No source-cut edits yet. Make and approve a cut first.';
+  });
+  bind('int-board', async () => {
+    const target = new URL('/edit-board', location.href);
+    if (!document.getElementById('steps')) {
+      const response = await fetch('/home', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+      const result = await response.json();
+      if (!response.ok || !result.url) throw new Error('Open the editor home page to use the edit board.');
+      const home = new URL(result.url); target.host = home.host; target.search = home.search;
+    }
+    if (el('int-edit').value) target.searchParams.set('edit', el('int-edit').value);
+    location.assign(target.href);
   });
   bind('int-resolve-setup', async () => {
     const result = await api('resolve/setup', {}); el('int-message').textContent = result.message + '\n\n' + (result.console_command || result.path);

@@ -33,6 +33,13 @@ Open **Resolve & Higgsfield** in the same panel for connection checks and action
   get a text-only credit quote and separately confirm a generation. Connection checks and quotes do
   not generate assets. Quotes expire and can be submitted only once. See [Higgsfield integration](docs/higgsfield-integration.md).
 
+Open **Edit board** in the home header to review a source cut or try the built-in synthetic sample.
+Keep/restore source passages, protect a demonstration hold, save visual direction and preview an
+immutable revision before approving its Resolve timeline. Each revision creates a separate timeline
+so earlier manual finishing remains available. Notes/emphasis are planning annotations; this release
+renders source cuts/audio and applies static zoom in Resolve. See the [operating guide](docs/edit-board.md)
+and [complete AI Edit Suite workflow inventory](docs/ai-edit-suite-coverage.md) for tested and pending features.
+
 The original project's documentation follows. Its Claude-specific launcher and plugin instructions
 are an alternative to this fork's Codex connection.
 

@@ -2034,6 +2034,9 @@ def make_handler(token):
             if not self.authorized():
                 return self.send(403, {"error": "open the page with the URL home.py printed"})
             path = unquote(urlsplit(self.path).path)
+            import edit_board_http
+            if edit_board_http.route(self, "GET", path, {}, sys.modules[__name__]):
+                return
             if askhook.route(self, "GET", path, {k: v[0] for k, v in parse_qs(urlsplit(self.path).query).items()}):   # Claude's questions
                 return
             import codex_http
@@ -2237,6 +2240,9 @@ def make_handler(token):
             except ValueError:
                 return self.send(400, {"error": "not json"})
             if askhook.route(self, "POST", path, {}, body):
+                return
+            import edit_board_http
+            if edit_board_http.route(self, "POST", path, body, sys.modules[__name__]):
                 return
             import codex_http
             if codex_http.route(self, "POST", path, body, home_module=sys.modules[__name__]):

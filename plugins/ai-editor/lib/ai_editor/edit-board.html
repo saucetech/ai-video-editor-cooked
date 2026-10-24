@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Edit board · cooked.</title><link rel="stylesheet" href="/edit-board.css"></head>
+<body>
+<header><a class="brand" href="/">cooked<span>.</span></a><span class="divider"></span><strong>Edit board</strong><a class="back" href="/">Back to library ↗</a></header>
+<main>
+  <section class="intro"><div><p class="eyebrow">YOUR EDIT, BEFORE THE FINAL CUT</p><h1>Shape the story.</h1><p class="muted">Keep the moments that matter. Review a cut. Finish in Resolve.</p></div>
+    <div class="project-tools"><label for="project">Source-cut project</label><div class="inline"><select id="project"><option value="">Choose a project</option></select><button id="reload">Reload</button></div><button id="sample" class="subtle">Try the synthetic sample</button></div>
+  </section>
+  <p id="notice" role="status" aria-live="polite">Choose a project, or start with the sample.</p>
+  <div id="workspace" hidden>
+    <div class="workflow" aria-label="Workflow progress"><span id="step-draft">01 &nbsp; Draft</span><span id="step-preview">02 &nbsp; Preview</span><span id="step-approve">03 &nbsp; Approve</span><span id="step-resolve">04 &nbsp; Resolve</span></div>
+    <div class="workspace">
+      <section class="story"><div class="section-head"><div><p class="eyebrow" id="project-name"></p><h2>Passages &amp; visual direction</h2></div><span id="duration" class="duration"></span></div>
+        <p id="sample-note" class="sample-note" hidden>Synthetic sample · moving test pattern and tone. Labels describe test sections; they are not transcribed speech.</p>
+        <div id="rows"></div>
+        <div class="save-bar"><span id="save-state">Draft loaded</span><button id="save" class="primary">Save board</button></div>
+      </section>
+      <aside class="preview-panel">
+        <div class="section-head"><h2>Watch the cut</h2><span id="player-mode" class="tag">Original source</span></div>
+        <video id="player" controls preload="metadata" playsinline aria-label="Edit board video"></video>
+        <p class="muted small">Preview includes source cuts and source audio. Static zooms apply in Resolve. Notes and emphasis text guide the next visual pass; they are not rendered captions or graphics.</p>
+        <button id="preview" class="primary wide">Build cut preview</button>
+        <label for="revision" class="field-label">Saved previews</label><select id="revision" class="wide"><option value="">No previews yet</option></select>
+        <div class="inline actions"><button id="watch">Watch preview</button><button id="approve">Approve this preview</button></div>
+        <div id="revision-info" class="revision-info"></div>
+        <div class="resolve-block"><div class="inline"><h3>Finish in Resolve</h3><button id="check-resolve" class="subtle">Check connection</button></div>
+          <p id="resolve-status" class="muted small">Approve the current preview to create a native timeline.</p>
+          <button id="send-resolve" class="primary wide">Create Resolve timeline</button>
+          <p class="muted small">Each revision gets a separate timeline. Earlier timelines and your manual finishing stay available.</p>
+          <details><summary>Connect Resolve</summary><p class="small muted">Open a dedicated project in Resolve. Get the command below, then paste it into Workspace → Console once per session.</p><button id="setup-resolve">Get connection command</button><pre id="connection-command"></pre></details>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <section id="empty" class="empty"><span>01 / START WITH A SOURCE</span><h2>A clear edit starts<br>with a few good decisions.</h2><p>Use the sample to restore a passage, protect a hold,<br>preview the result and create your first board timeline.</p></section>
+</main>
+<script src="/edit-board.js"></script>
+</body></html>
