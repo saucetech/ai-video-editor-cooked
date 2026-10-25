@@ -26,6 +26,20 @@ def load_bundle(edit, total, rate):
     return {**bundle,'root':str(path)}
 
 
+def read_controls(comp, checks):
+    tools={};values=[];differences=[]
+    for check in checks:
+        name=check['node']
+        if name not in tools:tools[name]=comp.FindTool(name)
+        tool=tools[name]
+        actual=(tool.GetInput(check['input'],check['frame']) if check.get('frame') is not None else tool.GetInput(check['input'])) if tool else None
+        expected=check['value']
+        same=(type(actual) in (int,float) and math.isfinite(actual) and abs(actual-expected)<.0001) if type(expected) in (int,float) else actual==expected
+        record={**check,'actual':actual,'matches':same};values.append(record)
+        if not same:differences.append(record)
+    return {'matches':not differences,'values':values,'differences':differences}
+
+
 def append_layers(pool, timeline, bundle, start):
     if not bundle or not bundle['layers']:return []
     for track in range(timeline.GetTrackCount('video')+1,5):
@@ -48,10 +62,14 @@ def append_layers(pool, timeline, bundle, start):
         if layer.get('comp'):
             comp=clip.ImportFusionComp(str(Path(bundle['root'])/layer['comp']))
             if not comp:raise ValueError('Resolve could not import editable Fusion text.')
-            text=comp.FindTool('GenMediaText')
-            if not text or text.GetInput('StyledText')!=layer['text']:raise ValueError('Resolve returned different caption or motion text.')
-            record['text']=text.GetInput('StyledText')
-            if layer['kind']!='caption' and info['endFrame']>=4:
+            if layer.get('checks'):
+                record['control_readback']=read_controls(comp,layer['checks'])
+                if not record['control_readback']['matches']:raise ValueError('Resolve returned different native recipe controls: '+str(record['control_readback']['differences'][:3]))
+            else:
+                text=comp.FindTool('GenMediaText')
+                if not text or text.GetInput('StyledText')!=layer['text']:raise ValueError('Resolve returned different caption or motion text.')
+                record['text']=text.GetInput('StyledText')
+            if not layer.get('checks') and layer['kind']!='caption' and info['endFrame']>=4:
                 output=comp.FindTool('GenMediaOutput');ramp=max(1,min(8,info['endFrame']//3))
                 values=[output.GetInput('Blend',0),output.GetInput('Blend',ramp)] if output else []
                 if len(values)!=2 or abs(float(values[0]))>.001 or abs(float(values[1])-1)>.001:

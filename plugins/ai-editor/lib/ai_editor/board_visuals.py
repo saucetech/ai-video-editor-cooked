@@ -182,6 +182,35 @@ def _text_image(text, width, height, kind):
     return image, wrapped, size / height
 
 
+def compile_recipe(path, folder, row, kind, width, height, info, fps, index, words):
+    import edit_board
+    import visual_recipes as recipes
+    import os
+    import tempfile
+    scene=recipes.build(row,kind,width,height,fps,words)
+    frames=scene['frames'];stem=f'{kind}-{index}';rate=format(fps,'.10g')
+    movie=folder/(stem+'.mov');carrier=folder/(stem+'-carrier.mov');comp=folder/(stem+'.comp');scene_path=folder/(stem+'-scene.json')
+    with tempfile.TemporaryDirectory(prefix='genmedia-frames-',dir=path) as tmp:
+        sequence=Path(tmp);cache={}
+        for frame in range(frames):
+            signature=tuple((n['alpha'][frame],n['scale'][frame]) for n in scene['nodes'])
+            destination=sequence/f'{frame:06}.png'
+            if signature in cache:
+                try:os.link(cache[signature],destination)
+                except OSError:shutil.copyfile(cache[signature],destination)
+            else:
+                recipes.render(scene,frame).save(destination);cache[signature]=destination
+        edit_board.run_renderer(['ffmpeg','-v','error','-y','-framerate',rate,'-i',str(sequence/'%06d.png'),'-frames:v',str(frames),'-an','-c:v','prores_ks','-profile:v','4','-pix_fmt','yuva444p10le',str(movie)])
+    edit_board.run_renderer(['ffmpeg','-v','error','-y','-f','lavfi','-i',f"color=c=black@0:s={info['width']}x{info['height']}:r={rate},format=rgba",'-frames:v',str(frames),'-an','-c:v','prores_ks','-profile:v','4','-pix_fmt','yuva444p10le',str(carrier)])
+    graph,checks=recipes.fusion(scene,info['width'],info['height']);comp.write_text(graph,encoding='utf-8')
+    scene_path.write_text(json.dumps(scene,ensure_ascii=False,allow_nan=False),encoding='utf-8')
+    return {'kind':kind,'track':4 if kind=='caption' else 3,'start':row['start'],'end':row['end'],'source_start':0,
+            'media':carrier.relative_to(path).as_posix(),'preview_media':movie.relative_to(path).as_posix(),
+            'comp':comp.relative_to(path).as_posix(),'scene':scene_path.relative_to(path).as_posix(),
+            'text':row['caption'] if kind=='caption' else row['motion_text'],'checks':checks,
+            'timing':scene['timing'],'transfer_notes':scene['notes']}
+
+
 def compile_bundle(path, rows, report):
     import edit_board
     path = Path(path); info = media_info(report['source']); fps = float(report['fps'])
@@ -191,6 +220,7 @@ def compile_bundle(path, rows, report):
     rate = format(fps, '.10g'); events = cues(rows)
     bundle = {'schema':1,'width':width,'height':height,'native_width':info['width'],'native_height':info['height'],'fps':fps,'duration':sum(r['end']-r['start'] for r in events), 'layers':[], 'files':{}}
     srt=[]
+    words=json.loads((path/'words.json').read_text(encoding='utf-8')) if (path/'words.json').is_file() else []
     folder=path/'visual-media';folder.mkdir()
     for index,row in enumerate(events):
         duration=row['end']-row['start']; seconds=duration/fps
@@ -208,6 +238,10 @@ def compile_bundle(path, rows, report):
             bundle['layers'].append({'kind':'broll','track':2,'start':row['start'],'end':row['end'],'media':out.relative_to(path).as_posix(),'source_start':0,'origin':str(original),'original_in':row['broll_start']})
         for kind,text in [('caption',row['caption'] if row['caption_enabled'] else ''),(row['motion'],row['motion_text'] if row['motion']!='none' else '')]:
             if not text.strip():continue
+            if (kind=='caption' and row['caption_treatment']!='panel') or kind in ('hero','outline','prompt_result'):
+                bundle['layers'].append(compile_recipe(path,folder,row,kind,width,height,info,fps,index,words))
+                if kind=='caption':srt.append((row['start']/fps,row['end']/fps,text))
+                continue
             image,wrapped,size=_text_image(text,width,height,kind)
             stem=f'{kind}-{index}';png=folder/(stem+'.png');movie=folder/(stem+'.mov');comp=folder/(stem+'.comp')
             image.save(png)

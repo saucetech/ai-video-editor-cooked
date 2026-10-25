@@ -45,6 +45,16 @@ class ResolveVisualTests(unittest.TestCase):
     def test_wrong_native_caption_text_is_failure_not_a_ready_timeline(self):
         layer={'kind':'caption','track':4,'start':0,'end':30,'source_start':0,'media':'c.mov','comp':'c.comp','text':'Wrong native value'}
         with self.assertRaisesRegex(ValueError,'text|caption'):self.mod.append_layers(Pool(),Timeline(),{'root':'/revision','layers':[layer]},0)
+    def test_declared_font_color_and_motion_controls_are_verified(self):
+        comp=Comp()
+        checks=[{'node':'GenMedia1','input':'StyledText','frame':None,'value':'Editable caption'},
+                {'node':'GenMedia1','input':'Font','frame':None,'value':'Georgia'},
+                {'node':'GenMedia1Merge','input':'Blend','frame':0,'value':0}]
+        self.assertTrue(hasattr(self.mod,'read_controls'),'Native recipe control verification is missing')
+        result=self.mod.read_controls(comp,checks)
+        self.assertFalse(result['matches'])
+        self.assertEqual([v['input'] for v in result['differences']],['Font'])
+
     def test_matching_canvas_uses_existing_settings_instead_of_resynchronizing_fusion(self):
         class NativeTimeline:
             def GetSettings(self):return {'timelineFrameRate':'30','timelineResolutionWidth':'640','timelineResolutionHeight':'360'}
