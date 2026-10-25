@@ -61,8 +61,12 @@ def build(row, kind, width, height, fps, words):
         # Authored line breaks take precedence over automatic phrase grouping.
         for page,group in enumerate(groups):
             content=transform(' '.join(w['text'] for w in group) if aligned and not manual_breaks else text)
-            lines,size=fit(content,width,height,min(max(width,height)*style['size_pct']/100,height*.09),family,weight)
-            y=min(height*.87,max(height*.65,height*style['y_pct']/100));line_height=size*1.3
+            requested_size=max(width,height)*style['size_pct']/100
+            lines,size=fit(content,width,height,requested_size,family,weight)
+            requested_y=height*style['y_pct']/100;line_height=size*1.3
+            y=min(height*.95-len(lines)*line_height/2,max(height*.05+len(lines)*line_height/2,requested_y))
+            if abs(size-requested_size)>.6:notes.append(f'Caption size fitted from {requested_size:g}px to {size}px for two-line frame bounds.')
+            if abs(y-requested_y)>.5:notes.append(f'Caption position fitted from {style["y_pct"]:g}% to {y/height*100:.2f}% to keep all lines in frame.')
             a=group[0]['start'] if aligned else 0
             b=groups[page+1][0]['start'] if aligned and page+1<len(groups) else frames
             alpha=[float(a<=i<b) for i in range(frames)]
@@ -78,16 +82,16 @@ def build(row, kind, width, height, fps, words):
                     x=(width-sum(lengths)-gap*(len(tokens)-1))/2
                     for t,length in zip(tokens,lengths):
                         word=group[offset];offset+=1;cy=y+(line_index-(len(lines)-1)/2)*line_height
-                        label(t,x+length/2,cy,size,family,weight,style['color'],alpha,'base')
-                        accent=[float(a<=i<b and word['start']<=i<word['end']) for i in range(frames)]
-                        label(t,x+length/2,cy,size,family,weight,style['accent'],accent,'accent');x+=length+gap
+                        n=label(t,x+length/2,cy,size,family,weight,style['color'],alpha,'base')
+                        n['colors']=[style['accent'] if word['start']<=i<word['end'] else style['color'] for i in range(frames)]
+                        x+=length+gap
             else:
                 for line_index,line in enumerate(lines):label(line,width/2,y+(line_index-(len(lines)-1)/2)*line_height,size,family,weight,style['color'],alpha,'base')
     else:
         minimum=max(1.1,len(row['motion_text'].split())*.25+2*style['entrance_s'])
         if kind=='prompt_result':minimum=max(minimum,1.8,(len(row['motion_result'].split())*.22+2*style['entrance_s'])/.58)
         if frames<math.ceil(fps*minimum):raise ValueError(f'This hook is too short for a readable hold. Keep at least {minimum:g} seconds or choose a simple fade title.')
-        ramp=min(round(fps*style['entrance_s']),frames//5);ramp=max(2,ramp)
+        ramp=max(2,round(fps*style['entrance_s']))
         envelope=[min(ease(i/ramp),ease((frames-1-i)/ramp)) for i in range(frames)]
         scale=[.95+.05*ease(i/ramp) for i in range(frames)]
         lines,size=fit(row['motion_text'],width,height,min(width*.075,height*.095),'Arial','Bold')
@@ -120,7 +124,7 @@ def render(scene, frame):
     for n in scene['nodes']:
         a=n['alpha'][frame]
         if a<=0:continue
-        rgba=ImageColor.getrgb(n['color'])+(round(a*n.get('opacity',1)*255),)
+        rgba=ImageColor.getrgb(n['colors'][frame] if 'colors' in n else n['color'])+(round(a*n.get('opacity',1)*255),)
         layer=Image.new('RGBA',image.size);d=ImageDraw.Draw(layer)
         if n['type']=='text':d.text((n['x'],n['y']),n['text'],font=font(n['font'],n['weight'],n['size']*n['scale'][frame]),fill=rgba,anchor='mm')
         else:
@@ -151,11 +155,18 @@ def fusion(scene,width,height):
             metric_scale=1.065 if n['font']=='Georgia' else 1.045
             size=n['size']/w*4/3*metric_scale
             scaled=[size*v for v in n['scale']]
+            channels=[[int(c[i:i+2],16)/255 for c in n.get('colors',[n['color']]*frames)] for i in (1,3,5)]
             inputs={'StyledText':inp(n['text']),'Font':inp(n['font']),'Style':inp(n['weight']),
                     'Size':curve(name+'Size',scaled),'Center':f'Input {{ Value = {{ {x}, {y} }} }}','UseFrameFormatSettings':inp(1),
-                    **{k:inp(v) for k,v in zip(('Red1','Green1','Blue1'),rgb)}}
+                    **{k:curve(name+k,values) if 'colors' in n else inp(values[0]) for k,values in zip(('Red1','Green1','Blue1'),channels)}}
             tools.append(name+' = TextPlus { Inputs = { '+', '.join(k+' = '+v for k,v in inputs.items())+' } }')
-            for key,value in [('StyledText',n['text']),('Font',n['font']),('Style',n['weight']),*zip(('Red1','Green1','Blue1'),rgb)]:checks.append(dict(node=name,input=key,value=value,frame=None))
+            for key,value in [('StyledText',n['text']),('Font',n['font']),('Style',n['weight'])]:checks.append(dict(node=name,input=key,value=value,frame=None))
+            color_samples=set([0,frames//2,frames-1])
+            if 'colors' in n:
+                changes=[i for i in range(1,frames) if n['colors'][i]!=n['colors'][i-1]]
+                color_samples.update(changes[:2])
+            for key,values in zip(('Red1','Green1','Blue1'),channels):
+                for i in sorted(color_samples):checks.append(dict(node=name,input=key,value=values[i],frame=i))
             for i in sorted(set([0,frames-1,frames//2])):checks.append(dict(node=name,input='Size',value=scaled[i],frame=i))
         else:
             mask=name+'Mask';widths=[n['w']/w*v for v in n['scale']]

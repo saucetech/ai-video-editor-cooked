@@ -24,6 +24,7 @@ try{
  assert.ok(await page.$('#style-reference option[value]'));
  await page.click('.visual-details summary');
  console.log('Board loaded');
+ if(flags.includes('--expect-fallback'))assert.match(await page.$eval('#compiled-0',e=>e.textContent),/caption.*passage fallback/,'Actual compiled fallback must be visible in the saved preview');
  const treatment=await page.$eval('[aria-label="Caption treatment passage 1"]',e=>e.value);
  assert.ok(['editorial','clean','spotlight'].includes(treatment));
  await page.screenshot({path:join(output,'board-controls.png'),fullPage:true});

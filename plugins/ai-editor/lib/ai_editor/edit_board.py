@@ -289,6 +289,7 @@ def _render_revision(path):
             visuals.render_preview(path, rows, bundle)
             visuals.verify_bundle(path)
             meta['visual_digest'] = visuals.file_hash(path / 'visuals.json')
+            meta['visual_summary']=[{'passage_id':layer.get('passage_id'),'kind':layer['kind'],'timing':layer.get('timing','passage'),'notes':list(dict.fromkeys(layer.get('transfer_notes',[])))} for layer in bundle['layers'] if layer.get('scene')]
         if artifacts(path) != meta['artifact_digest']: raise ValueError('Revision files changed during rendering.')
         st = (path / 'cut.mp4').stat()
         meta.update(state='ready', preview_stat=[st.st_size, st.st_mtime_ns])

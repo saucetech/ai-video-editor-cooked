@@ -37,6 +37,7 @@
     $('sequence').querySelectorAll('button').forEach(el => { el.disabled = busy; });
     $('save-state').textContent = dirty ? 'Unsaved changes · approval required again' : state ? `Board version ${state.version} · saved` : 'Choose a project';
     if (!state) return;
+    drawCompiledSummary();
     const frames = state.rows.filter(r => r.keep).reduce((n,r) => n + r.end_frame - r.start_frame, 0);
     $('duration').textContent = `${time(frames / state.fps)} selected`;
     $('step-draft').className = 'done';
@@ -100,7 +101,7 @@
         if(type==='number'){input.min=min;input.max=max;input.step=step;}
         input.oninput=()=>{const style=ensureStyle();style[key]=type==='number'?Number(input.value):input.value;changed();};wrap.append(input);visualFields.append(wrap);
       }
-      const contrastLabel=node('label',null,'caption-toggle'),contrast=node('input');contrast.type='checkbox';contrast.checked=!!row.caption_style?.box;contrast.setAttribute('aria-label',`Contrast panel passage ${index+1}`);contrast.onchange=()=>{ensureStyle().box=contrast.checked;changed();};contrastLabel.append(contrast,document.createTextNode('Contrast panel'));visualFields.append(contrastLabel);
+      const contrastLabel=node('label',null,'caption-toggle'),contrast=node('input');contrast.type='checkbox';contrast.checked=!!(row.caption_style?.box||row.caption_style?.shadow||row.caption_style?.stroke);contrast.setAttribute('aria-label',`Contrast panel passage ${index+1}`);contrast.onchange=()=>{const style=ensureStyle();style.box=contrast.checked;style.shadow=false;style.stroke=false;changed();};contrastLabel.append(contrast,document.createTextNode('Contrast panel'));visualFields.append(contrastLabel);
       const captionHint=node('p',row.caption_style?.source?`Reference: ${row.caption_style.source.name}. Editable native text; approximations listed below.`:'Word spotlight needs matching source word timestamps. Corrected or untimed text uses a static passage.','field-hint');visualFields.append(captionHint);
       if(row.caption_style?.transfer?.notes?.length){const info=node('details'),summary=node('summary','Style transfer details'),list=node('ul');row.caption_style.transfer.notes.forEach(text=>list.append(node('li',text)));info.append(summary,list,node('p','Board settings above are the current values. Reflow after native text edits requires a board rebuild.','field-hint'));visualFields.append(info);}
       const motionLabel=node('label','Motion graphic'),motion=node('select');motion.setAttribute('aria-label',`Motion graphic passage ${index+1}`);
@@ -110,7 +111,7 @@
       const brollLabel=node('label','B-roll · covers this passage'),broll=node('select');broll.setAttribute('aria-label',`B-roll passage ${index+1}`);broll.append(new Option('Original source',''));
       const choices=[...assets];if(row.broll&&!choices.some(a=>a.path===row.broll))choices.push({path:row.broll,name:row.broll.split('/').pop()});choices.forEach(a=>broll.append(new Option(a.name,a.path)));broll.value=row.broll||'';broll.onchange=()=>{row.broll=broll.value;updateVisual();changed();};brollLabel.append(broll);visualFields.append(brollLabel);
       const pointLabel=node('label','B-roll in-point · seconds'),point=node('input');point.type='number';point.min=0;point.step=.01;point.value=String(row.broll_start||0);point.setAttribute('aria-label',`B-roll in-point passage ${index+1}`);point.oninput=()=>{row.broll_start=Number(point.value);changed();};pointLabel.append(point);visualFields.append(pointLabel);
-      visual.append(visualFields);card.append(visual);
+      visual.append(visualFields);card.append(visual);const compiled=node('div',null,'field-hint compiled-summary');compiled.id=`compiled-${index}`;card.append(compiled);
 
       const details=node('details',null,'direction-details'), summary=node('summary');
       const directionSummary=()=>{summary.textContent='Visual direction'+(row.zoom!==1?` · ${row.zoom.toFixed(2)}× zoom`:'')+([row.note,row.emphasis].some(Boolean)?' · notes':'');};
@@ -134,8 +135,17 @@
     if(!state.revisions.some(r=>r.id===selected)) selected=state.revisions.find(r=>r.board_version===state.version)?.id||'';
     options.value=selected;
     const rev=currentRevision();
-    loadProof();
+    loadProof();drawCompiledSummary();
     $('revision-info').textContent = rev ? rev.error || (rev.native_state==='blocked'?'Resolve outcome needs inspection. No automatic retry.':rev.native_result?.timeline_name || (rev.state==='rendering'?'Rendering captions and visual layers…':`${rev.selected_frames} frames · ${rev.approved?'approved':'awaiting approval'}`)) : 'Build a preview after saving your choices.';
+  }
+  function drawCompiledSummary(){
+    if(!state)return;const rev=currentRevision();
+    state.rows.forEach((row,index)=>{const target=$(`compiled-${index}`);target.replaceChildren();target.textContent='';if(!rev||rev.state!=='ready')return;
+      if(dirty||rev.board_version!==state.version){target.textContent='Current changes need a new saved preview.';return;}
+      const entries=(rev.visual_summary||[]).filter(v=>v.passage_id===row.id);if(!entries.length)return;
+      target.textContent=entries.map(v=>`${v.kind} · ${v.timing}`).join(' / ');
+      const notes=[...new Set(entries.flatMap(v=>v.notes||[]))];if(notes.length){const details=node('details'),summary=node('summary','Compiled preview adjustments & limits'),list=node('ul');notes.forEach(t=>list.append(node('li',t)));details.append(summary,list);target.append(details);}
+    });
   }
   function display(next) {
     state=next;dirty=false;selected='';activeRow=-1;$('workspace').hidden=false;$('empty').hidden=true;
@@ -150,11 +160,12 @@
   $('apply-style').onclick=()=>{if(busy||!state)return;const chosen=styles.find(s=>s.id===$('style-reference').value);if(!chosen)return;state.rows.filter(r=>r.keep).forEach(r=>{r.caption_style=JSON.parse(JSON.stringify(chosen.style));r.caption_treatment=chosen.style.treatment;});drawRows();changed();notice('Supported style choices applied. Review transfer details, save and build a new preview.');};
   function drawProof(){
     const panel=$('proof-panel');panel.hidden=!proofData;if(!proofData)return;
+    if(!proofData.frames?.length){$('proof-status').textContent='No frames were captured. Run Compare Resolve again.';$('proof-frame').replaceChildren();$('proof-images').replaceChildren();return;}
     $('proof-status').textContent=`${proofData.control_status==='matches'?'Declared native controls matched':'Native changes detected · review differences'} · captured ${new Date(proofData.created*1000).toLocaleString()}`;
     const select=$('proof-frame');select.replaceChildren();proofData.frames.forEach((f,i)=>select.append(new Option(`${time(f.seconds)} · frame ${f.frame}`,String(i))));select.value='0';
     const notes=$('proof-notes');notes.replaceChildren();proofData.notes.forEach(t=>notes.append(node('li',t)));proofData.differences.forEach(d=>notes.append(node('li',`${d.node||'Timeline'} · ${d.input}: ${JSON.stringify(d.actual)}`)));showProofFrame();
   }
-  function showProofFrame(){if(!proofData)return;const pair=proofData.frames[Number($('proof-frame').value)||0],images=$('proof-images');images.replaceChildren();for(const [key,label] of [['preview','Board preview'],['native','DaVinci Resolve']]){const figure=node('figure'),image=node('img');image.alt=`${label} at frame ${pair.frame}`;image.src='/board/proof?'+new URLSearchParams({edit:state.edit,revision:selected,proof:proofData.id,file:pair[key]});figure.append(image,node('figcaption',label));images.append(figure);}}
+  function showProofFrame(){if(!proofData?.frames?.length)return;const pair=proofData.frames[Number($('proof-frame').value)||0],images=$('proof-images');images.replaceChildren();for(const [key,label] of [['preview','Board preview'],['native','DaVinci Resolve']]){const figure=node('figure'),image=node('img');image.alt=`${label} at frame ${pair.frame}`;image.src='/board/proof?'+new URLSearchParams({edit:state.edit,revision:selected,proof:proofData.id,file:pair[key]});figure.append(image,node('figcaption',label));images.append(figure);}}
   $('proof-frame').onchange=showProofFrame;
   async function loadProof(){const rev=currentRevision(),key=rev?.resolve_proof?`${rev.id}:${rev.resolve_proof.id}`:'';if(key===proofKey)return;proofKey=key;proofData=null;drawProof();if(!key)return;try{const result=await api('/board/proof?'+new URLSearchParams({edit:state.edit,revision:rev.id,proof:rev.resolve_proof.id}));if(proofKey===key){proofData=result.proof;drawProof();}}catch(error){notice(error.message,true);}}
   $('compare-resolve').onclick=()=>action('Capturing actual Resolve frames and checking editable controls…',async()=>{const result=await api('/board/compare',payload());state=await api('/board/load',{edit:state.edit});proofKey='';drawRevisions();notice(result.proof.control_status==='matches'?'Comparison captured. Inspect the paired frames and transfer limits.':'Native changes were found. Review the comparison; your native edits were preserved.');});

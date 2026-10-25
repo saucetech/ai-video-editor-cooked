@@ -41,7 +41,7 @@ def normalize(data, name, digest):
     s['case']=caps.get('case',look.get('caption_case','sentence'))
     if s['case'] not in ('sentence','lower','upper'):s['case']='sentence'
     for key in ('box','shadow','stroke'):s[key]=caps.get(key) is True if measured else False
-    if s['shadow'] or s['stroke']:notes.append('Source shadow/stroke is approximated by a translucent contrast panel; exact source shading is unsupported.')
+    if s['shadow'] or s['stroke']:notes.append('Source shadow/stroke can use a contrast panel approximation; exact shading is unsupported. Board controls set the applied contrast.')
     palette=graphics.get('palette') or []
     if isinstance(palette,list):
         for entry in reversed(palette):

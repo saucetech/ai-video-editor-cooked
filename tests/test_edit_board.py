@@ -83,6 +83,14 @@ class EditBoardTests(unittest.TestCase):
         self.assertEqual(json.loads((folder/'visuals.json').read_text(encoding='utf-8'))['layers'][0]['timing'],'passage fallback')
         self.assertEqual((self.edit/'words.raw.json').read_text(encoding='utf-8'),original)
 
+    def test_ready_preview_exposes_actual_timing_fallback_before_approval(self):
+        state=self.mod.load(self.edit);state['rows'][0].update(caption='A correction',caption_enabled=True,caption_treatment='spotlight')
+        self.mod.save(self.edit,state['version'],state['rows']);state,rid=self.ready()
+        rev=next(r for r in state['revisions'] if r['id']==rid)
+        self.assertTrue(rev.get('visual_summary'),'Compiled timing needs a pre-approval surface')
+        caption=next(v for v in rev['visual_summary'] if v['kind']=='caption')
+        self.assertEqual(caption['timing'],'passage fallback');self.assertEqual(caption['passage_id'],state['rows'][0]['id'])
+
     def test_restore_maps_source_intervals_and_preserves_original_files(self):
         state = self.mod.load(self.edit)
         self.assertEqual([(r['start_frame'], r['end_frame'], r['keep']) for r in state['rows']],

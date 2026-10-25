@@ -76,9 +76,16 @@ class ProofTests(unittest.TestCase):
         m=self.module()
         with tempfile.TemporaryDirectory() as tmp:
             p=Path(tmp);bundle,manifest=self.fixture(p);r=Resolve();out=p/'proof';out.mkdir()
-            bundle['layers'][0]['checks'].append({'node':'ResultMerge','input':'Blend','frame':50,'value':1})
+            bundle['layers'][0]['checks'].extend([{'node':'ResultMerge','input':'Blend','frame':50,'value':1},{'node':'Word','input':'Red1','frame':0,'value':1},{'node':'Word','input':'Red1','frame':51,'value':.7}])
             report=m.capture_native(r,p,bundle,manifest,out)
-            self.assertIn(50,[f['frame'] for f in report['frames']])
+            self.assertIn(50,[f['frame'] for f in report['frames']]);self.assertIn(51,[f['frame'] for f in report['frames']])
+
+    def test_zoom_only_revision_compares_source_frames_without_overlay_layers(self):
+        m=self.module()
+        with tempfile.TemporaryDirectory() as tmp:
+            p=Path(tmp);bundle,manifest=self.fixture(p);bundle['layers']=[];manifest['native_layers']=[]
+            out=p/'proof';out.mkdir();report=m.capture_native(Resolve(),p,bundle,manifest,out)
+            self.assertEqual([f['frame'] for f in report['frames']],[0,30,59])
 
     def test_wrong_project_never_selects_or_exports_and_export_failure_restores(self):
         m=self.module()

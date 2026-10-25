@@ -41,11 +41,16 @@ def capture_native(resolve, revision, bundle, manifest, folder):
             or int(settings['timelineResolutionWidth'])!=bundle.get('native_width',bundle['width'])
             or int(settings['timelineResolutionHeight'])!=bundle.get('native_height',bundle['height'])):raise ValueError('Native canvas or frame rate changed. Compare against a matching timeline format.')
     differences=[];points=set();controls=[];notes=[]
+    if not bundle['layers']:points.update((0,bundle['duration']//2,bundle['duration']-1))
     for layer in bundle['layers']:
         duration=layer['end']-layer['start']
         for local in (0,min(duration-1,round(fps*.35)),duration//2,duration-1):points.add(layer['start']+local)
-        sampled_nodes=set()
+        sampled_nodes=set();color_initial={};sampled_colors=set()
         for check in layer.get('checks',[]):
+            if check['input'] in ('Red1','Green1','Blue1') and type(check.get('frame')) is int:
+                key=(check['node'],check['input']);color_initial.setdefault(key,check['value'])
+                if key not in sampled_colors and check['value']!=color_initial[key] and 0<=check['frame']<duration:
+                    points.add(layer['start']+check['frame']);sampled_colors.add(key)
             if check['input']=='Blend' and check.get('value')==1 and type(check.get('frame')) is int and check['node'] not in sampled_nodes:
                 if 0<=check['frame']<duration:points.add(layer['start']+check['frame'])
                 sampled_nodes.add(check['node'])

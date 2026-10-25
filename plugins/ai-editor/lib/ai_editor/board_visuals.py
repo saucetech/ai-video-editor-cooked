@@ -208,7 +208,7 @@ def compile_recipe(path, folder, row, kind, width, height, info, fps, index, wor
             'media':carrier.relative_to(path).as_posix(),'preview_media':movie.relative_to(path).as_posix(),
             'comp':comp.relative_to(path).as_posix(),'scene':scene_path.relative_to(path).as_posix(),
             'text':row['caption'] if kind=='caption' else row['motion_text'],'checks':checks,
-            'timing':scene['timing'],'transfer_notes':scene['notes']}
+            'passage_id':row.get('id'),'timing':scene['timing'],'transfer_notes':scene['notes']}
 
 
 def compile_bundle(path, rows, report):

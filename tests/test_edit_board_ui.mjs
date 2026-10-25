@@ -18,6 +18,8 @@ const document={getElementById(id){if(!ids.has(id)){const el=new Element();el.id
 const source={schema:1,version:1,edit:'/owned/edit',name:'edit',fps:30,total_frames:120,selected_frames:120,sample:false,
   approved_revision:null, rows:[{id:'row',start_frame:0,end_frame:120,text:'A passage',keep:true,protected:false,note:'',emphasis:'',zoom:1}],
   revisions:[{id:'preview',board_version:1,state:'ready',selected_frames:120,approved:false,native_state:null}]};
+source.rows[0].caption_style={font:'Arial',weight:'Bold',treatment:'clean',size_pct:4.4,y_pct:82,words_per_phrase:5,color:'#FFFFFF',accent:'#C3DECB',case:'sentence',box:false,shadow:true,stroke:false,entrance_s:.3};
+source.revisions[0].visual_summary=[{passage_id:'row',kind:'caption',timing:'passage fallback',notes:['Caption size fitted from 50px to 30px.']}];
 let savedRows;
 const clone=value=>JSON.parse(JSON.stringify(value));
 const fetch=async(path,options)=>{
@@ -47,6 +49,7 @@ assert.equal(ids.get('player').currentTime,0);
 let paused=false;ids.get('player').pause=()=>{paused=true;};
 ids.get('player').currentTime=4;ids.get('player').ontimeupdate();
 assert.equal(paused,true,'Source passage playback must stop at its end');
+assert.match(ids.get('compiled-0').textContent||ids.get('compiled-0').children.map(n=>n.textContent).join(' '),/passage fallback/,'Actual compiled fallback must be visible before approval');
 await ids.get('approve').onclick();await settle();
 const note=nodes.filter(e=>e['aria-label']==='Visual direction · planning note 1').at(-1);
 note.value='Keep this correction after approval';note.oninput();
@@ -55,14 +58,14 @@ assert.ok(caption,'Caption correction must be available');caption.value='Correct
 const enabled=nodes.filter(e=>e['aria-label']==='Show caption passage 1').at(-1);enabled.checked=true;enabled.onchange();
 const treatment=nodes.filter(e=>e['aria-label']==='Caption treatment passage 1').at(-1);
 assert.ok(treatment,'Advanced caption treatment must be selectable');treatment.value='spotlight';treatment.onchange();
-const contrast=nodes.filter(e=>e['aria-label']==='Contrast panel passage 1').at(-1);assert.ok(contrast);contrast.checked=true;contrast.onchange();
+const contrast=nodes.filter(e=>e['aria-label']==='Contrast panel passage 1').at(-1);assert.ok(contrast);assert.equal(contrast.checked,true,'Inherited shadow approximation must show effective contrast state');contrast.checked=false;contrast.onchange();
 const motion=nodes.filter(e=>e['aria-label']==='Motion graphic passage 1').at(-1);motion.value='prompt_result';motion.onchange();
 const motionText=nodes.filter(e=>e['aria-label']==='Motion text passage 1').at(-1);motionText.value='Editable title';motionText.oninput();
 const resultText=nodes.filter(e=>e['aria-label']==='Hook result passage 1').at(-1);assert.ok(resultText);resultText.value='Visible result';resultText.oninput();
 const broll=nodes.filter(e=>e['aria-label']==='B-roll passage 1').at(-1);broll.value='/owned/broll.mp4';broll.onchange();
 await ids.get('save').onclick();await settle();
 assert.equal(savedRows[0].caption,'Corrected caption');assert.equal(savedRows[0].caption_enabled,true);
-assert.equal(savedRows[0].caption_treatment,'spotlight');assert.equal(savedRows[0].caption_style.box,true);assert.equal(savedRows[0].motion_result,'Visible result');assert.equal(savedRows[0].motion,'prompt_result');assert.equal(savedRows[0].motion_text,'Editable title');assert.equal(savedRows[0].broll,'/owned/broll.mp4');
+assert.equal(savedRows[0].caption_treatment,'spotlight');assert.equal(savedRows[0].caption_style.box,false);assert.equal(savedRows[0].caption_style.shadow,false);assert.equal(savedRows[0].motion_result,'Visible result');assert.equal(savedRows[0].motion,'prompt_result');assert.equal(savedRows[0].motion_text,'Editable title');assert.equal(savedRows[0].broll,'/owned/broll.mp4');
 assert.equal(savedRows[0].note,'Keep this correction after approval','Approval must not leave handlers attached to discarded row objects');
 assert.equal(source.approved_revision,null);
 source.approved_revision='preview';source.revisions[0].board_version=source.version;source.revisions[0].native_state='blocked';

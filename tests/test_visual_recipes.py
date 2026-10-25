@@ -16,12 +16,12 @@ class RecipeTests(unittest.TestCase):
         s=m.build(r,'caption',640,360,30,words)
         texts=[n for n in s['nodes'] if n['type']=='text']
         self.assertEqual([n['text'] for n in texts if n.get('role')=='base'],['Make','every','frame','count.'])
-        active=[n for n in texts if n.get('role')=='accent']
-        self.assertEqual(active[0]['alpha'][0],0);self.assertEqual(active[0]['alpha'][3],1)
-        self.assertEqual(active[0]['alpha'][15],0)
+        self.assertEqual(len(texts),4,'A word must have one editable text source for all color states')
+        self.assertEqual(texts[0]['colors'][0],'#FFFFFF');self.assertEqual(texts[0]['colors'][3],'#C3DECB')
+        self.assertEqual(texts[0]['colors'][15],'#FFFFFF')
         self.assertEqual(s['timing'],'word timestamps')
         graph,checks=m.fusion(s,640,360)
-        self.assertEqual(len([c for c in checks if c['input']=='StyledText']),8)
+        self.assertEqual(len([c for c in checks if c['input']=='StyledText']),4)
         self.assertNotIn('Loader',graph)
     def test_caption_correction_is_static_and_dense_text_is_rejected(self):
         m=self.module();r=self.row();r['caption']='A corrected caption';r['caption_treatment']='spotlight'
@@ -94,6 +94,17 @@ class RecipeTests(unittest.TestCase):
         self.assertEqual(m.render(scene,90).getpixel((50,194))[3],0,'Short results should leave source margins visible')
         plate=next(n for n in scene['nodes'] if n['type']=='rect' and n.get('opacity')==.92)
         self.assertGreater(plate.get('radius',0),0)
+
+    def test_supported_size_position_and_entrance_are_honored_or_reported(self):
+        m=self.module();import board_styles
+        r=self.row();r.update(caption='A title',caption_style={**board_styles.DEFAULT,'size_pct':8,'y_pct':60,'entrance_s':.8},motion_text='Go',end_frame=150)
+        s=m.build(r,'caption',1280,720,30,[]);n=next(n for n in s['nodes'] if n['type']=='text')
+        self.assertEqual(n['y'],432);self.assertEqual(n['size'],102)
+        s=m.build(r,'hero',1280,720,30,[]);n=next(n for n in s['nodes'] if n['type']=='text')
+        self.assertLess(n['alpha'][12],1);self.assertEqual(n['alpha'][24],1)
+        r['caption']='A much longer caption whose words need to fit the available frame'
+        s=m.build(r,'caption',360,640,30,[])
+        self.assertTrue(any('size' in n.lower() for n in s['notes']),'Any actual fitting must be disclosed')
 
     def test_serif_font_and_size_are_the_same_scene_contract_for_both_renderers(self):
         m=self.module();s=m.build(self.row(),'caption',640,360,30,[])
