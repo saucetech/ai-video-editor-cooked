@@ -100,6 +100,7 @@
         if(type==='number'){input.min=min;input.max=max;input.step=step;}
         input.oninput=()=>{const style=ensureStyle();style[key]=type==='number'?Number(input.value):input.value;changed();};wrap.append(input);visualFields.append(wrap);
       }
+      const contrastLabel=node('label',null,'caption-toggle'),contrast=node('input');contrast.type='checkbox';contrast.checked=!!row.caption_style?.box;contrast.setAttribute('aria-label',`Contrast panel passage ${index+1}`);contrast.onchange=()=>{ensureStyle().box=contrast.checked;changed();};contrastLabel.append(contrast,document.createTextNode('Contrast panel'));visualFields.append(contrastLabel);
       const captionHint=node('p',row.caption_style?.source?`Reference: ${row.caption_style.source.name}. Editable native text; approximations listed below.`:'Word spotlight needs matching source word timestamps. Corrected or untimed text uses a static passage.','field-hint');visualFields.append(captionHint);
       if(row.caption_style?.transfer?.notes?.length){const info=node('details'),summary=node('summary','Style transfer details'),list=node('ul');row.caption_style.transfer.notes.forEach(text=>list.append(node('li',text)));info.append(summary,list,node('p','Board settings above are the current values. Reflow after native text edits requires a board rebuild.','field-hint'));visualFields.append(info);}
       const motionLabel=node('label','Motion graphic'),motion=node('select');motion.setAttribute('aria-label',`Motion graphic passage ${index+1}`);

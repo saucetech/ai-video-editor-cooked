@@ -16,6 +16,7 @@ from pathlib import Path
 
 import resolve_bridge as resolve
 import board_visuals as visuals
+import board_styles
 
 HERE = Path(__file__).resolve().parent
 RENDER = HERE.parents[1] / 'skills/cut/scripts/render.py'
@@ -101,7 +102,8 @@ def initial(edit, ctx):
     words_path = edit / 'words.raw.json'
     words = read(words_path) if words_path.exists() else []
     if isinstance(words, dict): words = words.get('words', [])
-    if not isinstance(words, list): words = []
+    words=board_styles.snapshot_words(words)
+    words=[w for w in words if type(w.get('start')) in (int,float) and type(w.get('end')) in (int,float) and w['end']>w['start']]
     spans, pos = [], 0
     for a, b in ctx['frames']:
         if a > pos: spans.append((pos, a, False))
@@ -232,7 +234,7 @@ def preview(edit, expected_version):
         write(path / 'report.json', {'source': ctx['source'], 'fps': fps, 'duration': ctx['total_frames'] / fps, 'frames': frames})
         write(path / 'plan.json', {'durationInFrames': record, 'zooms': zooms})
         write(path / 'board-rows.json', board['rows'])
-        if (edit/'words.raw.json').is_file():write(path/'words.json',read(edit/'words.raw.json'))
+        if (edit/'words.raw.json').is_file():write(path/'words.json',board_styles.snapshot_words(read(edit/'words.raw.json')))
         rev = {'id': rid, 'created': time.time(), 'state': 'rendering', 'board_version': board['version'],
                'fingerprint': ctx['fingerprint'], 'artifact_digest': artifacts(path), 'approved': False,
                'native_state': None, 'selected_frames': record, 'error': None}

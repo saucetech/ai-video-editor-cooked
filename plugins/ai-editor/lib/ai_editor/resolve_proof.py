@@ -44,6 +44,11 @@ def capture_native(resolve, revision, bundle, manifest, folder):
     for layer in bundle['layers']:
         duration=layer['end']-layer['start']
         for local in (0,min(duration-1,round(fps*.35)),duration//2,duration-1):points.add(layer['start']+local)
+        sampled_nodes=set()
+        for check in layer.get('checks',[]):
+            if check['input']=='Blend' and check.get('value')==1 and type(check.get('frame')) is int and check['node'] not in sampled_nodes:
+                if 0<=check['frame']<duration:points.add(layer['start']+check['frame'])
+                sampled_nodes.add(check['node'])
         notes.extend(layer.get('transfer_notes',[]))
     points=sorted(points)
     if len(points)>24:points=[points[round(i*(len(points)-1)/23)] for i in range(24)]

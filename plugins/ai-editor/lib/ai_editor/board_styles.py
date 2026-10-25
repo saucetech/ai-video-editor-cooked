@@ -111,6 +111,19 @@ def catalog(root):
     return out
 
 
+def snapshot_words(raw):
+    """Keep only alignment inputs; invalid timings remain explicit nulls, never invented."""
+    if isinstance(raw,dict):raw=raw.get('words',[])
+    if not isinstance(raw,list):return [{'invalid':True}]
+    result=[]
+    for word in raw:
+        if not isinstance(word,dict):result.append({'invalid':True});continue
+        text=word.get('word',word.get('text',''))
+        result.append({'word':text if isinstance(text,str) else '',
+                       **{key:number(word.get(key),0,1e10,None) for key in ('start','end')}})
+    return result
+
+
 def align_words(row, words, fps):
     """Exact normalized token alignment only; corrections never acquire invented times."""
     fallback='Word timing unavailable or caption correction differs from the transcript; static passage timing is used.'

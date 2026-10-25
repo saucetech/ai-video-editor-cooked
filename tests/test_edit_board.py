@@ -73,6 +73,16 @@ class EditBoardTests(unittest.TestCase):
         self.mod.approve(self.edit,rid,state['version'])
         with self.assertRaisesRegex(ValueError,'native|timeline'):self.mod.compare_resolve(self.edit,rid,state['version'])
 
+    def test_nonfinite_word_metadata_becomes_static_fallback_without_changing_source(self):
+        original=json.dumps([{'word':'Broken','start':0,'end':float('nan')}])
+        (self.edit/'words.raw.json').write_text(original,encoding='utf-8')
+        state=self.mod.load(self.edit);state['rows'][0].update(caption='Timing fallback',caption_enabled=True,caption_treatment='clean')
+        self.mod.save(self.edit,state['version'],state['rows'])
+        state,rid=self.ready();folder=self.mod.revision_dir(self.edit,rid)
+        self.assertEqual(json.loads((folder/'words.json').read_text(encoding='utf-8'))[0]['end'],None)
+        self.assertEqual(json.loads((folder/'visuals.json').read_text(encoding='utf-8'))['layers'][0]['timing'],'passage fallback')
+        self.assertEqual((self.edit/'words.raw.json').read_text(encoding='utf-8'),original)
+
     def test_restore_maps_source_intervals_and_preserves_original_files(self):
         state = self.mod.load(self.edit)
         self.assertEqual([(r['start_frame'], r['end_frame'], r['keep']) for r in state['rows']],

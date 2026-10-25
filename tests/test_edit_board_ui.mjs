@@ -55,13 +55,14 @@ assert.ok(caption,'Caption correction must be available');caption.value='Correct
 const enabled=nodes.filter(e=>e['aria-label']==='Show caption passage 1').at(-1);enabled.checked=true;enabled.onchange();
 const treatment=nodes.filter(e=>e['aria-label']==='Caption treatment passage 1').at(-1);
 assert.ok(treatment,'Advanced caption treatment must be selectable');treatment.value='spotlight';treatment.onchange();
+const contrast=nodes.filter(e=>e['aria-label']==='Contrast panel passage 1').at(-1);assert.ok(contrast);contrast.checked=true;contrast.onchange();
 const motion=nodes.filter(e=>e['aria-label']==='Motion graphic passage 1').at(-1);motion.value='prompt_result';motion.onchange();
 const motionText=nodes.filter(e=>e['aria-label']==='Motion text passage 1').at(-1);motionText.value='Editable title';motionText.oninput();
 const resultText=nodes.filter(e=>e['aria-label']==='Hook result passage 1').at(-1);assert.ok(resultText);resultText.value='Visible result';resultText.oninput();
 const broll=nodes.filter(e=>e['aria-label']==='B-roll passage 1').at(-1);broll.value='/owned/broll.mp4';broll.onchange();
 await ids.get('save').onclick();await settle();
 assert.equal(savedRows[0].caption,'Corrected caption');assert.equal(savedRows[0].caption_enabled,true);
-assert.equal(savedRows[0].caption_treatment,'spotlight');assert.equal(savedRows[0].motion_result,'Visible result');assert.equal(savedRows[0].motion,'prompt_result');assert.equal(savedRows[0].motion_text,'Editable title');assert.equal(savedRows[0].broll,'/owned/broll.mp4');
+assert.equal(savedRows[0].caption_treatment,'spotlight');assert.equal(savedRows[0].caption_style.box,true);assert.equal(savedRows[0].motion_result,'Visible result');assert.equal(savedRows[0].motion,'prompt_result');assert.equal(savedRows[0].motion_text,'Editable title');assert.equal(savedRows[0].broll,'/owned/broll.mp4');
 assert.equal(savedRows[0].note,'Keep this correction after approval','Approval must not leave handlers attached to discarded row objects');
 assert.equal(source.approved_revision,null);
 source.approved_revision='preview';source.revisions[0].board_version=source.version;source.revisions[0].native_state='blocked';

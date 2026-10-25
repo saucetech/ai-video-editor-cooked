@@ -67,7 +67,9 @@ def build(row, kind, width, height, fps, words):
             b=groups[page+1][0]['start'] if aligned and page+1<len(groups) else frames
             alpha=[float(a<=i<b) for i in range(frames)]
             if style['box'] or style['shadow'] or style['stroke']:
-                add('rect',x=width/2,y=y,w=width*.9,h=len(lines)*line_height+size*.5,color='#080A0E',opacity=.8)['alpha']=alpha
+                brightness=sum(int(style['color'][i:i+2],16)*weight for i,weight in zip((1,3,5),(.2126,.7152,.0722)))/255
+                panel_color='#080A0E' if brightness>.5 else '#F4F4F5'
+                add('rect',x=width/2,y=y,w=min(width*.9,max(font(family,weight,size).getlength(line) for line in lines)+size*1.2),h=len(lines)*line_height+size*.5,color=panel_color,opacity=.8,radius=size*.25)['alpha']=alpha
             if treatment=='spotlight' and aligned:
                 f=font(family,weight,size);from PIL import Image,ImageDraw
                 draw=ImageDraw.Draw(Image.new('RGBA',(1,1)));offset=0
@@ -103,6 +105,9 @@ def build(row, kind, width, height, fps, words):
         if kind=='prompt_result':
             phase=round(frames*.42);reveal=[envelope[i]*ease((i-phase)/ramp) for i in range(frames)]
             result_lines,result_size=fit(row['motion_result'],width,height,size*.85,'Georgia','Regular')
+            brightness=sum(int(accent[i:i+2],16)*weight for i,weight in zip((1,3,5),(.2126,.7152,.0722)))/255
+            panel_color='#080A0E' if brightness>.5 else '#F4F4F5'
+            add('rect',x=width/2,y=height*.54,w=min(width*.88,max(font('Georgia','Regular',result_size).getlength(line) for line in result_lines)+result_size*1.2),h=result_size*(len(result_lines)*1.2+.7),color=panel_color,opacity=.92,radius=result_size*.25)['alpha']=reveal
             for j,line in enumerate(result_lines):label(line,width/2,height*.54+(j-(len(result_lines)-1)/2)*result_size*1.2,result_size,'Georgia','Regular',accent,reveal)
             add('rect',x=width/2,y=height*.44,w=width*.08,h=max(2,height*.004),color=accent,opacity=1)['alpha']=reveal
     if len(nodes)>80:raise ValueError('Too many editable word nodes in one passage. Split it into shorter passages.')
@@ -120,7 +125,7 @@ def render(scene, frame):
         if n['type']=='text':d.text((n['x'],n['y']),n['text'],font=font(n['font'],n['weight'],n['size']*n['scale'][frame]),fill=rgba,anchor='mm')
         else:
             w=n['w']*n['scale'][frame];h=n['h']
-            d.rectangle((n['x']-w/2,n['y']-h/2,n['x']+w/2,n['y']+h/2),fill=rgba)
+            d.rounded_rectangle((n['x']-w/2,n['y']-h/2,n['x']+w/2,n['y']+h/2),radius=n.get('radius',0),fill=rgba)
         image=Image.alpha_composite(image,layer)
     return image
 
@@ -141,7 +146,10 @@ def fusion(scene,width,height):
         name=n['id'];x,y=n['x']/w,1-n['y']/h
         rgb=[int(n['color'][i:i+2],16)/255 for i in (1,3,5)]
         if n['type']=='text':
-            size=n['size']/w*4/3
+            # Resolve 21.1.1 native held-frame calibration against the same installed TTFs.
+            # Text+ nominal size differs from Pillow em size: Georgia was 6.36% narrower.
+            metric_scale=1.065 if n['font']=='Georgia' else 1.045
+            size=n['size']/w*4/3*metric_scale
             scaled=[size*v for v in n['scale']]
             inputs={'StyledText':inp(n['text']),'Font':inp(n['font']),'Style':inp(n['weight']),
                     'Size':curve(name+'Size',scaled),'Center':f'Input {{ Value = {{ {x}, {y} }} }}','UseFrameFormatSettings':inp(1),
@@ -151,8 +159,9 @@ def fusion(scene,width,height):
             for i in sorted(set([0,frames-1,frames//2])):checks.append(dict(node=name,input='Size',value=scaled[i],frame=i))
         else:
             mask=name+'Mask';widths=[n['w']/w*v for v in n['scale']]
-            tools.append(mask+' = RectangleMask { Inputs = { Center = Input { Value = { '+f'{x}, {y}'+' } }, Width = '+curve(mask+'Width',widths)+', Height = '+inp(n['h']/h)+' } }')
+            tools.append(mask+' = RectangleMask { Inputs = { Center = Input { Value = { '+f'{x}, {y}'+' } }, Width = '+curve(mask+'Width',widths)+', Height = '+inp(n['h']/h)+', CornerRadius = '+inp(n.get('radius',0)/n['h'])+' } }')
             tools.append(name+' = Background { Inputs = { '+', '.join(['Width = '+inp(width),'Height = '+inp(height),'UseFrameFormatSettings = '+inp(1),*['TopLeft'+k+' = '+inp(v) for k,v in zip(('Red','Green','Blue'),rgb)],'TopLeftAlpha = '+inp(n['opacity']),'EffectMask = Input { SourceOp = '+j(mask)+', Source = "Mask" }'])+' } }')
+            for key,value in [*zip(('TopLeftRed','TopLeftGreen','TopLeftBlue'),rgb),('TopLeftAlpha',n['opacity'])]:checks.append(dict(node=name,input=key,value=value,frame=None))
             for i in (0,frames//2,frames-1):checks.append(dict(node=mask,input='Width',value=widths[i],frame=i))
         merge=name+'Merge';blend=curve(merge+'Alpha',n['alpha'])
         tools.append(merge+' = Merge { Inputs = { Background = Input { SourceOp = '+j(last)+', Source = "Output" }, Foreground = Input { SourceOp = '+j(name)+', Source = "Output" }, Blend = '+blend+' } }')

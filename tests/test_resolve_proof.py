@@ -72,6 +72,14 @@ class ProofTests(unittest.TestCase):
             report=m.capture_native(r,p,bundle,manifest,out)
             self.assertEqual(report['control_status'],'diverged','Changed manifest checks must not redefine the approved visual controls')
 
+    def test_late_result_reveal_and_word_highlights_get_actual_capture_points(self):
+        m=self.module()
+        with tempfile.TemporaryDirectory() as tmp:
+            p=Path(tmp);bundle,manifest=self.fixture(p);r=Resolve();out=p/'proof';out.mkdir()
+            bundle['layers'][0]['checks'].append({'node':'ResultMerge','input':'Blend','frame':50,'value':1})
+            report=m.capture_native(r,p,bundle,manifest,out)
+            self.assertIn(50,[f['frame'] for f in report['frames']])
+
     def test_wrong_project_never_selects_or_exports_and_export_failure_restores(self):
         m=self.module()
         with tempfile.TemporaryDirectory() as tmp:

@@ -23,16 +23,16 @@ Run the normal cut workflow from **New video** with your own recording. Once its
 
 ## Add captions, motion and B-roll
 
-1. Open a kept passage's **Captions & visuals**. Proofread **Caption text**, then enable **Show caption**. This displays one corrected caption for the whole passage, based on the available transcript. Manual line breaks are retained, with additional wrapping where needed. It is not word-timed karaoke.
-2. Choose **Fade title** or **Fade lower third** and enter its text. These are original editable text-panel recipes with fade-in/out keyframes.
+1. Open a kept passage's **Captions & visuals**. Proofread **Caption text**, then enable **Show caption**. The original panel uses passage timing. Clean, Editorial serif and Word spotlight use verified source word timestamps for phrase pages when corrected text still aligns. Otherwise they explicitly fall back to static passage timing. Manual line breaks take precedence over automatic phrase grouping. This is editable Text+, not a Subtitle-track karaoke effect.
+2. Choose **Fade title** or **Fade lower third** and enter its text. These retain their original fade controls. Hero reveal, Outline draw and Prompt → result add original native recipes with editable text, sampled easing, accent shapes and a separately editable result. Long copy requires a sufficient readable hold; shorten it or keep a longer passage if the preview rejects it.
 3. Choose **Add B-roll** to copy a local video into durable library storage. Saved selections survive temporary-upload cleanup. Select it on a passage and set its in-point in seconds. The clip must cover the full passage from that point. B-roll replaces the picture while retaining source audio; its own audio is excluded.
 4. Save, build and watch the preview. It includes enabled captions, motion, B-roll and static zooms. **Download captions · SRT** exports the corrected passage timing.
 5. Approve and create the Resolve timeline. V1/A1 retain original source clips/audio, V2 contains ordinary prepared B-roll clips, V3 contains editable motion Text+ compositions, and V4 contains editable caption Text+ compositions.
-6. In Resolve, select a text clip and open Fusion. **GenMediaText** controls text/font/size/position; **GenMediaOutput** and **GenMediaOpacity** control the motion fade and keyframes. The blank timing carrier contains no baked text. Captions are Text+ clips, not a native Subtitle track.
+6. In Resolve, select a text clip and open Fusion. Legacy panels use **GenMediaText**, **GenMediaOutput** and **GenMediaOpacity**. New recipes use visible **GenMedia1**, **GenMedia2** and subsequent text/shape nodes with named Size/Alpha splines. Each visible word in a spotlight caption is editable; rebuild from the board to reflow wording changes across those word nodes. The blank timing carrier contains no baked text. Captions are Text+ clips, not a native Subtitle track.
 
-Browser previews are bounded to 1280 pixels. Native timelines/carriers preserve source resolution and display orientation, including 90-degree phone rotation metadata; B-roll is conformed to the source canvas and timeline FPS and can be relinked to its recorded original. Preview rasterization and Fusion are separate renderers, so font and fade appearance may differ slightly. Native controls take priority over pixel-identical handoff.
+Browser previews are bounded to 1280 pixels. Native timelines/carriers preserve source resolution and display orientation, including 90-degree phone rotation metadata; B-roll is conformed to the source canvas and timeline FPS and can be relinked to its recorded original. Preview rasterization and Fusion are separate renderers, so font and fade appearance may differ slightly. Use Compare Resolve to inspect actual paired frames. A successful import or matching controls alone does not certify the visual result.
 
-Visual direction and emphasis remain planning notes. Music, animated source zooms, semantic B-roll recommendations, advanced caption styles and hook recipes remain in the [maintained feature inventory](ai-edit-suite-coverage.md). Earlier source-only boards keep their old approval and default all new visuals off. Enabling or changing visuals requires a new preview approval.
+Visual direction and emphasis remain planning notes. Music, animated source zooms, semantic B-roll recommendations and the remaining hook families remain in the [maintained feature inventory](ai-edit-suite-coverage.md). Earlier source-only boards keep their old approval and default all new visuals off. Enabling or changing visuals requires a new preview approval.
 
 ## Revision and recovery behavior
 
@@ -57,3 +57,29 @@ Visual follow-up acceptance: the eight-second synthetic visual sample rendered t
 Reliability acceptance also covers a 360x640 portrait source stored as a rotated 640x360 video, manual caption line breaks and a four-frame graphic. Preview fade alpha now reaches zero on its last frame, matching the native fade endpoint. Text+ size is calibrated from preview pixel size and canvas aspect ratio; read back the native text and inspect its margins when adding another font or caption recipe. Existing approved bundles remain immutable; build and approve a new revision to use these layout fixes.
 
 The portrait follow-up included a saved correction and separate revised timeline; native readback confirmed the prior manual Text+ change was retained. These checks use the same workflow above, with original synthetic test media.
+
+## Apply an analyzed style and inspect its native transfer
+
+Trigger: a saved creator analysis should guide editable captions or opening graphics. Inputs: the saved `creator-teardowns/<id>/style.json`, a board source cut and optional `words.raw.json`. Original analyses remain untouched.
+
+1. Expand **Use an analyzed style**, choose a reference and apply it to kept passages. Captions remain opt-in and corrected text/ranges stay unchanged. Review **Style transfer details** before saving. Settings distinguish measured candidates, visual inference and defaults; the measured source hash is saved with the row snapshot.
+2. Choose a caption treatment, phrase length, text size, vertical position and colors. **Contrast panel** provides light/dark support appropriate to the text color. Source shadow/stroke use this panel approximation, not the original shading. Font portability currently uses installed Arial and Georgia. A source such as Playfair Display is explicitly a substitution. Automatic face/product avoidance is not implemented.
+3. Save, build, watch and approve. Revisions snapshot word data and generated scenes, curves and verified assets. Word spotlight uses original source timestamps mapped through omitted intervals. A changed word, missing timing, invalid timing or multiword timestamp record produces a visible passage-fallback note, never fabricated speech synchronization. Dense captions must be shortened/split. Advanced passages are bounded to 60 seconds and 80 editable nodes.
+4. Create the separate native timeline, then choose **Compare Resolve**. Keep the owning Resolve project open. The app verifies the project/timeline identity and declared current controls, exports actual native frames and decodes corresponding preview frames. Sample points include starts, entrances, holds, exits and declared word/result reveals, capped at 24 frames. Inspect paired images and playback; this is not a pixel-equivalence score.
+5. Changes to checked text, declared controls and clip structure appear as divergence. Additional native effects or nodes outside that declared set require visual inspection of the pairs. The comparison does not overwrite native finishing. Captures display their timestamp and become historical as soon as you continue native finishing; run Compare Resolve again for a fresh check. Current approved revisions only can request new comparisons. Historical saved captures remain viewable. Native UI timeline/page/playhead are restored; uncertain calls retain the existing explicit-recovery behavior. Drop-frame timecode comparisons are currently rejected rather than seeking inaccurate frames.
+
+Verification uses actual exported Resolve stills plus editable control readback. A synthetic portrait calibration exposed a 6.36% narrower Georgia caption before correction; the revised sample's held caption width differed from the preview by 0.91%. This is a measured property of those frames, not a general font-fidelity or editing-quality claim. Free Resolve 21.1.1.10 was used. New fonts, machines and color-management choices require fresh comparisons.
+
+Repeatable local macOS QA (uses existing installed tools and Chrome for H.264 playback; never installs packages or overwrites an existing edit):
+
+```sh
+# Supply your configured library and a NEW synthetic edit name. --style is optional.
+~/.ai-video-editor/venv/bin/python tests/make_native_style_demo.py LIBRARY NEW_NAME --portrait --style SAVED_ID
+# In the board, watch, approve, import and compare in a compatible dedicated QA project.
+node tests/browser_edit_board.mjs EDIT_FOLDER EVIDENCE_FOLDER --compare
+~/.ai-video-editor/venv/bin/python tests/check_native_style_frames.py PROOF_REPORT_JSON
+```
+
+Acceptance: readable held frames and full playback in portrait and landscape; verified visible native text/font/color/curves; matching source audio/ranges; a new corrected timeline retains earlier manual finishing. The geometry helper targets the neutral synthetic demo's first-caption region only; it is not a general quality evaluator. No actual spoken footage is available yet. Feed back the source style hash, revision, passage, sample frame and expected control/appearance; use the existing common-footage procedure when real recordings arrive.
+
+Landscape acceptance also created a separate 1280x720/30fps native timeline, checked 23 actual sampled frames including late result/word reveals, and verified the declared controls. Its checked first-caption width matched the preview. The later refinement adds fitted contrast cards so result text remains readable over occupied source imagery. This remains synthetic layout/mechanism evidence, not validation of speech accuracy or automatic face placement.

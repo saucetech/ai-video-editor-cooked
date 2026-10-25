@@ -72,6 +72,29 @@ class RecipeTests(unittest.TestCase):
         r.update(motion_text='Make every single frame carry the meaning of your story',end_frame=150)
         with self.assertRaisesRegex(ValueError,'short|hold'):m.build(r,'hero',640,360,30,[])
 
+    def test_dark_caption_uses_light_contrast_support_and_declares_native_panel_color(self):
+        m=self.module();import board_styles
+        r=self.row();r['caption_style']={**board_styles.DEFAULT,'color':'#101010','box':True}
+        s=m.build(r,'caption',640,360,30,[])
+        panel=next(n for n in s['nodes'] if n['type']=='rect')
+        self.assertEqual(panel['color'],'#F4F4F5')
+        graph,checks=m.fusion(s,640,360)
+        self.assertTrue(any(c['node']==panel['id'] and c['input']=='TopLeftRed' and c['value']>.9 for c in checks))
+
+    def test_prompt_result_has_native_contrast_plate_over_busy_footage(self):
+        m=self.module();r=self.row();r.update(motion_text='Start with an idea',motion_result='Useful result')
+        s=m.build(r,'prompt_result',640,360,30,[])
+        pixel=m.render(s,90).getpixel((230,178))
+        self.assertGreater(pixel[3],220,'The result needs its own contrast support over source footage')
+        self.assertLess(max(pixel[:3]),30)
+
+    def test_result_plate_is_fitted_to_copy_instead_of_covering_the_frame(self):
+        m=self.module();r=self.row();r.update(motion_text='A clear idea',motion_result='Useful result')
+        scene=m.build(r,'prompt_result',640,360,30,[])
+        self.assertEqual(m.render(scene,90).getpixel((50,194))[3],0,'Short results should leave source margins visible')
+        plate=next(n for n in scene['nodes'] if n['type']=='rect' and n.get('opacity')==.92)
+        self.assertGreater(plate.get('radius',0),0)
+
     def test_serif_font_and_size_are_the_same_scene_contract_for_both_renderers(self):
         m=self.module();s=m.build(self.row(),'caption',640,360,30,[])
         graph,checks=m.fusion(s,1280,720)
