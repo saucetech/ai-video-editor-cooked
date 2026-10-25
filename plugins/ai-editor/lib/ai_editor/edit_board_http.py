@@ -13,7 +13,7 @@ ASSETS = {'/edit-board': ('edit-board.html', 'text/html; charset=utf-8'),
           '/edit-board.js': ('edit-board.js', 'text/javascript; charset=utf-8'),
           '/edit-board.css': ('edit-board.css', 'text/css; charset=utf-8')}
 PATHS = {'/board/projects', '/board/import-asset', '/board/assets', '/board/load', '/board/save', '/board/preview', '/board/approve',
-         '/board/resolve', '/board/sample', '/board/media', '/board/captions'}
+         '/board/resolve', '/board/sample', '/board/media', '/board/captions', '/board/styles', '/board/compare', '/board/proof'}
 
 
 def media(handler, file):
@@ -58,6 +58,19 @@ def route(handler, method, path, body, home):
         if path == '/board/projects' and method == 'GET':
             handler.send(200, {'edits': integrations_http.edits(home)})
             return True
+        if path == '/board/styles' and method == 'GET':
+            import board_styles
+            handler.send(200, {'styles':board_styles.catalog(home.read()['root']),'default_style':board_styles.DEFAULT})
+            return True
+        if path == '/board/proof' and method == 'GET':
+            q={k:v[0] for k,v in parse_qs(urlsplit(handler.path).query).items()}
+            edit=integrations_http.edit_path(q.get('edit'),home)
+            folder,report=board.proof_report(edit,q.get('revision'),q.get('proof'))
+            if q.get('file'):
+                if q['file'] not in report['files']:raise ValueError('Unknown comparison frame.')
+                media(handler,folder/q['file'])
+            else:handler.send(200,{'proof':report})
+            return True
         if path == '/board/assets' and method == 'GET':
             root = Path(home.read()['root']).resolve()
             files = []
@@ -93,7 +106,7 @@ def route(handler, method, path, body, home):
                 raise ValueError('The selected media is unavailable.')
             media(handler, file)
             return True
-        if method != 'POST' or path in ASSETS or path in ('/board/projects', '/board/assets', '/board/media', '/board/captions'):
+        if method != 'POST' or path in ASSETS or path in ('/board/projects', '/board/assets', '/board/media', '/board/captions', '/board/styles', '/board/proof'):
             handler.send(405, {'error': 'Use the board control for this action.'}); return True
         if not isinstance(body, dict): raise ValueError('Expected a board request object.')
         import live
@@ -108,9 +121,10 @@ def route(handler, method, path, body, home):
                 if path == '/board/load': result = board.load(edit)
                 elif path == '/board/save': result = board.save(edit, version, body.get('rows'), [Path(home.read()['root'])])
                 elif path == '/board/preview': result = board.preview(edit, version)
+                elif path == '/board/compare': result = board.compare_resolve(edit,rid,version)
                 elif path == '/board/approve': result = board.approve(edit, rid, version)
                 else: result = board.send_to_resolve(edit, rid, version)
         handler.send(200, result)
-    except (ValueError, OSError, KeyError, TypeError, subprocess.SubprocessError) as exc:
+    except (ValueError, OSError, KeyError, TypeError, RuntimeError, subprocess.SubprocessError) as exc:
         handler.send(400, {'error': str(exc)[:1200]})
     return True

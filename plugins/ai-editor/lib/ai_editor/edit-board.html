@@ -35,14 +35,21 @@
 <section class="resolve-block" aria-labelledby="resolve-title">
 <div class="section-head"><h2 id="resolve-title">DaVinci Resolve</h2><button id="check-resolve" class="subtle">Check connection</button></div>
 <p id="resolve-status" class="muted small">Approve a preview to create its timeline.</p><button id="send-resolve" class="primary wide">Create Resolve timeline</button>
-<p class="muted small">A separate timeline for each revision preserves your earlier finishing.</p>
+<button id="compare-resolve" class="wide">Compare Resolve</button><p class="muted small">A separate timeline for each revision preserves your earlier finishing.</p>
 <details><summary>Connection setup</summary><p class="small muted">Open a dedicated project in Resolve. Paste this command into Workspace → Console once per session.</p><button id="setup-resolve">Get connection command</button><pre id="connection-command"></pre></details>
 </section>
 </div>
+<section id="proof-panel" class="proof-panel" hidden aria-label="Native transfer comparison">
+<div class="section-head"><h2>Transfer comparison</h2><span class="tag">Actual Resolve frames</span></div>
+<p id="proof-status" role="status"></p><label for="proof-frame">Sample frame</label><select id="proof-frame" class="wide"></select>
+<div id="proof-images" class="proof-images"></div><details><summary>Transferred choices & limits</summary><ul id="proof-notes"></ul></details>
+<p class="field-hint">A timestamped sample, not a guarantee of the entire video. Run Compare Resolve again after native changes.</p>
+</section>
 </section>
 <section class="story" aria-labelledby="passages-title">
 <div class="section-head story-head"><h2 id="passages-title">Passages</h2><button id="upload-broll" class="subtle">Add B-roll</button><input id="broll-file" type="file" accept="video/mp4,video/quicktime,video/webm,.mkv,.m4v" hidden></div>
 <p id="sample-note" class="sample-note" hidden>Synthetic sample with test pattern and tone. Passage labels are not a transcript.</p>
+<details class="style-transfer"><summary>Use an analyzed style</summary><p class="field-hint">Apply supported choices to kept passages. Caption enablement and your corrected text stay yours.</p><label for="style-reference">Saved analysis</label><select id="style-reference" class="wide"></select><button id="apply-style">Apply to kept passages</button><p id="style-summary" class="field-hint"></p></details>
 <div id="rows"></div><p class="planning-limit">Captions & visuals render in the preview. Visual direction and emphasis remain planning notes.</p>
 <div class="save-bar"><span id="save-state">Draft loaded</span><button id="save" class="primary">Save board</button></div>
 </section>

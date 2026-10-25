@@ -2,7 +2,7 @@
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  let state = null, dirty = false, busy = false, selected = '', watchEnd = null, polling = false, activeRow = -1, assets = [];
+  let state = null, dirty = false, busy = false, selected = '', watchEnd = null, polling = false, activeRow = -1, assets = [], styles = [], defaultStyle = {}, proofData = null, proofKey = '';
   const notice = (text, error = false) => { $('notice').textContent = text; $('notice').classList.toggle('error', error); };
   const time = seconds => `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(3).padStart(6, '0')}`;
   async function api(path, body) {
@@ -28,9 +28,11 @@
     if(state&&rev)$('captions-download').href='/board/captions?'+new URLSearchParams({edit:state.edit,revision:rev.id});
     $('approve').disabled = busy || dirty || !current || rev.state !== 'ready' || state.approved_revision === selected;
     $('send-resolve').disabled = busy || dirty || !current || state.approved_revision !== selected || rev.native_state === 'sending' || rev.native_state === 'blocked';
+    $('compare-resolve').disabled=busy||dirty||!current||state?.approved_revision!==selected||rev?.native_state!=='ready'||!rev?.visual_digest;
+    $('apply-style').disabled=busy||!state||!$('style-reference').value;
     $('send-resolve').textContent = rev?.native_state === 'ready' ? 'View timeline details' : 'Create Resolve timeline';
     $('resolve-status').textContent = rev?.native_state === 'blocked' ? 'Inspect the incomplete Resolve timeline before continuing. This revision will not be retried.' : rev?.native_state === 'sending' ? 'Creating the timeline. Leave the Resolve connection running.' : rev?.native_state === 'ready' ? 'Timeline created. Open Resolve to continue finishing.' : state?.approved_revision === selected && selected ? 'Preview approved. Ready to create a separate timeline.' : 'Approve a preview to create its timeline.';
-    for (const id of ['project','reload','sample','revision','setup-resolve','check-resolve','upload-broll']) $(id).disabled = busy;
+    for (const id of ['project','reload','sample','revision','setup-resolve','check-resolve','upload-broll','style-reference','proof-frame']) $(id).disabled = busy;
     $('rows').querySelectorAll('input,textarea,select,button').forEach(el => { el.disabled = busy || (el.dataset.keep === 'true' && state.rows[Number(el.dataset.index)].protected); });
     $('sequence').querySelectorAll('button').forEach(el => { el.disabled = busy; });
     $('save-state').textContent = dirty ? 'Unsaved changes · approval required again' : state ? `Board version ${state.version} · saved` : 'Choose a project';
@@ -90,10 +92,20 @@
       captionToggle.setAttribute('aria-label',`Show caption passage ${index+1}`);captionToggle.onchange=()=>{row.caption_enabled=captionToggle.checked;updateVisual();changed();};captionLabel.append(captionToggle,document.createTextNode('Show caption'));visualFields.append(captionLabel);
       const captionLabelText=node('label','Caption text'),caption=node('textarea');caption.value=row.caption??row.text.slice(0,500);caption.maxLength=500;caption.rows=2;
       caption.setAttribute('aria-label',`Caption text passage ${index+1}`);caption.oninput=()=>{row.caption=caption.value;changed();};captionLabelText.append(caption);visualFields.append(captionLabelText);
-      const captionHint=node('p','One caption for this passage. Correct the text before enabling it.','field-hint');visualFields.append(captionHint);
+      const treatmentLabel=node('label','Caption treatment'),treatment=node('select');treatment.setAttribute('aria-label',`Caption treatment passage ${index+1}`);
+      [['panel','Original panel'],['clean','Clean'],['editorial','Editorial serif'],['spotlight','Word spotlight']].forEach(([v,t])=>treatment.append(new Option(t,v)));treatment.value=row.caption_treatment||'panel';treatment.onchange=()=>{row.caption_treatment=treatment.value;changed();};treatmentLabel.append(treatment);visualFields.append(treatmentLabel);
+      const ensureStyle=()=>{if(!row.caption_style)row.caption_style=JSON.parse(JSON.stringify(defaultStyle));return row.caption_style;};
+      for(const [key,text,type,min,max,step] of [['words_per_phrase','Words per phrase','number',1,8,1],['size_pct','Text size · % of long side','number',2,8,.1],['y_pct','Caption position · % from top','number',60,90,1],['accent','Spotlight / hook accent','color'],['color','Text color','color']]){
+        const wrap=node('label',text),input=node('input');input.type=type;input.value=String((row.caption_style||defaultStyle)[key]??'');input.setAttribute('aria-label',`${text} passage ${index+1}`);
+        if(type==='number'){input.min=min;input.max=max;input.step=step;}
+        input.oninput=()=>{const style=ensureStyle();style[key]=type==='number'?Number(input.value):input.value;changed();};wrap.append(input);visualFields.append(wrap);
+      }
+      const captionHint=node('p',row.caption_style?.source?`Reference: ${row.caption_style.source.name}. Editable native text; approximations listed below.`:'Word spotlight needs matching source word timestamps. Corrected or untimed text uses a static passage.','field-hint');visualFields.append(captionHint);
+      if(row.caption_style?.transfer?.notes?.length){const info=node('details'),summary=node('summary','Style transfer details'),list=node('ul');row.caption_style.transfer.notes.forEach(text=>list.append(node('li',text)));info.append(summary,list,node('p','Board settings above are the current values. Reflow after native text edits requires a board rebuild.','field-hint'));visualFields.append(info);}
       const motionLabel=node('label','Motion graphic'),motion=node('select');motion.setAttribute('aria-label',`Motion graphic passage ${index+1}`);
-      [['none','None'],['title','Fade title'],['lower_third','Fade lower third']].forEach(([v,t])=>motion.append(new Option(t,v)));motion.value=row.motion||'none';motion.onchange=()=>{row.motion=motion.value;updateVisual();changed();};motionLabel.append(motion);visualFields.append(motionLabel);
+      [['none','None'],['title','Fade title'],['lower_third','Fade lower third'],['hero','Hero reveal'],['outline','Outline draw'],['prompt_result','Prompt → result']].forEach(([v,t])=>motion.append(new Option(t,v)));motion.value=row.motion||'none';motion.onchange=()=>{row.motion=motion.value;updateVisual();changed();};motionLabel.append(motion);visualFields.append(motionLabel);
       const titleLabel=node('label','Motion text'),title=node('input');title.type='text';title.maxLength=180;title.value=row.motion_text||'';title.setAttribute('aria-label',`Motion text passage ${index+1}`);title.oninput=()=>{row.motion_text=title.value;changed();};titleLabel.append(title);visualFields.append(titleLabel);
+      const resultLabel=node('label','Hook result'),resultText=node('input');resultText.type='text';resultText.maxLength=180;resultText.value=row.motion_result||'';resultText.setAttribute('aria-label',`Hook result passage ${index+1}`);resultText.oninput=()=>{row.motion_result=resultText.value;changed();};resultLabel.append(resultText);visualFields.append(resultLabel);
       const brollLabel=node('label','B-roll · covers this passage'),broll=node('select');broll.setAttribute('aria-label',`B-roll passage ${index+1}`);broll.append(new Option('Original source',''));
       const choices=[...assets];if(row.broll&&!choices.some(a=>a.path===row.broll))choices.push({path:row.broll,name:row.broll.split('/').pop()});choices.forEach(a=>broll.append(new Option(a.name,a.path)));broll.value=row.broll||'';broll.onchange=()=>{row.broll=broll.value;updateVisual();changed();};brollLabel.append(broll);visualFields.append(brollLabel);
       const pointLabel=node('label','B-roll in-point · seconds'),point=node('input');point.type='number';point.min=0;point.step=.01;point.value=String(row.broll_start||0);point.setAttribute('aria-label',`B-roll in-point passage ${index+1}`);point.oninput=()=>{row.broll_start=Number(point.value);changed();};pointLabel.append(point);visualFields.append(pointLabel);
@@ -121,6 +133,7 @@
     if(!state.revisions.some(r=>r.id===selected)) selected=state.revisions.find(r=>r.board_version===state.version)?.id||'';
     options.value=selected;
     const rev=currentRevision();
+    loadProof();
     $('revision-info').textContent = rev ? rev.error || (rev.native_state==='blocked'?'Resolve outcome needs inspection. No automatic retry.':rev.native_result?.timeline_name || (rev.state==='rendering'?'Rendering captions and visual layers…':`${rev.selected_frames} frames · ${rev.approved?'approved':'awaiting approval'}`)) : 'Build a preview after saving your choices.';
   }
   function display(next) {
@@ -131,6 +144,20 @@
     drawRows();drawRevisions();controls();
   }
   async function loadAssets() {assets=(await api('/board/assets')).assets;}
+  async function loadStyles(){const data=await api('/board/styles');styles=data.styles;defaultStyle=data.default_style;const select=$('style-reference');select.replaceChildren(new Option('Choose an analyzed style',''));styles.forEach(s=>select.append(new Option(s.name,s.id)));}
+  $('style-reference').onchange=()=>{const chosen=styles.find(s=>s.id===$('style-reference').value);$('style-summary').textContent=chosen?`${chosen.style.font} · ${chosen.style.treatment}. ${chosen.style.transfer.notes[0]}`:'';controls();};
+  $('apply-style').onclick=()=>{if(busy||!state)return;const chosen=styles.find(s=>s.id===$('style-reference').value);if(!chosen)return;state.rows.filter(r=>r.keep).forEach(r=>{r.caption_style=JSON.parse(JSON.stringify(chosen.style));r.caption_treatment=chosen.style.treatment;});drawRows();changed();notice('Supported style choices applied. Review transfer details, save and build a new preview.');};
+  function drawProof(){
+    const panel=$('proof-panel');panel.hidden=!proofData;if(!proofData)return;
+    $('proof-status').textContent=`${proofData.control_status==='matches'?'Declared native controls matched':'Native changes detected · review differences'} · captured ${new Date(proofData.created*1000).toLocaleString()}`;
+    const select=$('proof-frame');select.replaceChildren();proofData.frames.forEach((f,i)=>select.append(new Option(`${time(f.seconds)} · frame ${f.frame}`,String(i))));select.value='0';
+    const notes=$('proof-notes');notes.replaceChildren();proofData.notes.forEach(t=>notes.append(node('li',t)));proofData.differences.forEach(d=>notes.append(node('li',`${d.node||'Timeline'} · ${d.input}: ${JSON.stringify(d.actual)}`)));showProofFrame();
+  }
+  function showProofFrame(){if(!proofData)return;const pair=proofData.frames[Number($('proof-frame').value)||0],images=$('proof-images');images.replaceChildren();for(const [key,label] of [['preview','Board preview'],['native','DaVinci Resolve']]){const figure=node('figure'),image=node('img');image.alt=`${label} at frame ${pair.frame}`;image.src='/board/proof?'+new URLSearchParams({edit:state.edit,revision:selected,proof:proofData.id,file:pair[key]});figure.append(image,node('figcaption',label));images.append(figure);}}
+  $('proof-frame').onchange=showProofFrame;
+  async function loadProof(){const rev=currentRevision(),key=rev?.resolve_proof?`${rev.id}:${rev.resolve_proof.id}`:'';if(key===proofKey)return;proofKey=key;proofData=null;drawProof();if(!key)return;try{const result=await api('/board/proof?'+new URLSearchParams({edit:state.edit,revision:rev.id,proof:rev.resolve_proof.id}));if(proofKey===key){proofData=result.proof;drawProof();}}catch(error){notice(error.message,true);}}
+  $('compare-resolve').onclick=()=>action('Capturing actual Resolve frames and checking editable controls…',async()=>{const result=await api('/board/compare',payload());state=await api('/board/load',{edit:state.edit});proofKey='';drawRevisions();notice(result.proof.control_status==='matches'?'Comparison captured. Inspect the paired frames and transfer limits.':'Native changes were found. Review the comparison; your native edits were preserved.');});
+
   $('upload-broll').onclick=()=>{if(!busy)$('broll-file').click();};
   $('broll-file').onchange=()=>action('Copying B-roll into your local library…',async()=>{const file=$('broll-file').files?.[0];if(!file)return;const response=await fetch('/upload?stage=1&name='+encodeURIComponent(file.name),{method:'POST',body:file});const result=await response.json();if(!response.ok||result.error)throw new Error(result.error||'The local copy failed.');await api('/board/import-asset',{path:result.path});await loadAssets();if(state)drawRows();$('broll-file').value='';notice('B-roll added. Choose it in a passage’s Captions & visuals.');});
   async function projects(chosen='') {
@@ -162,5 +189,5 @@
   }
   setInterval(poll,1800);
   window.addEventListener('beforeunload',event=>{if(dirty){event.preventDefault();event.returnValue='';}});
-  action('Loading source-cut projects…',async()=>{await Promise.all([projects(),loadAssets()]);const path=new URLSearchParams(location.search).get('edit');if(path){$('project').value=path;await loadProject(path);}else notice('Choose a source-cut project, or try the synthetic sample.');});
+  action('Loading source-cut projects…',async()=>{await Promise.all([projects(),loadAssets(),loadStyles()]);const path=new URLSearchParams(location.search).get('edit');if(path){$('project').value=path;await loadProject(path);}else notice('Choose a source-cut project, or try the synthetic sample.');});
 })();

@@ -5,6 +5,7 @@ arbitrary file operation is available through a request.
 """
 import json
 import os
+import re
 import time
 import uuid
 from pathlib import Path
@@ -13,7 +14,7 @@ METHODS = {
     'Resolve': {'GetVersionString', 'GetProjectManager', 'GetCurrentPage', 'OpenPage'},
     'ProjectManager': {'GetCurrentProject', 'SaveProject'},
     'Project': {'GetUniqueId', 'GetName', 'GetMediaPool', 'GetCurrentTimeline', 'SetCurrentTimeline',
-                'GetTimelineCount', 'GetTimelineByIndex'},
+                'GetTimelineCount', 'GetTimelineByIndex', 'ExportCurrentFrameAsStill'},
     'MediaPool': {'ImportMedia', 'CreateEmptyTimeline', 'AppendToTimeline'},
     'MediaPoolItem': {'GetUniqueId', 'GetClipProperty'},
     'Timeline': {'GetUniqueId', 'GetName', 'SetSettings', 'GetSettings', 'GetStartFrame',
@@ -95,6 +96,10 @@ class Proxy:
         def invoke(*args):
             if self.kind == 'FusionTool' and method == 'SetInput' and (len(args) != 2 or args[0] != 'StyledText' or not isinstance(args[1], str) or len(args[1]) > 500):
                 raise ValueError('Only bounded editable text changes are supported through this connection.')
+            if self.kind == 'Project' and method == 'ExportCurrentFrameAsStill':
+                if len(args)!=1 or not isinstance(args[0],str):raise ValueError('Invalid native proof destination.')
+                p=Path(args[0]);root=self.session.export_root
+                if root is None or p.parent!=root or p.resolve().parent!=root or not re.fullmatch(r'native-[0-9]{1,3}\.png',p.name) or p.exists() or p.is_symlink():raise ValueError('Native frame export requires a new scoped proof destination.')
             return self.session.call(self.ref, method, args)
         return invoke
 
@@ -105,6 +110,7 @@ class Session:
         self.timeout, self.id = timeout, uuid.uuid4().hex
         self.resolve = self.proxy('resolve', 'Resolve')
         self.lock, self.poisoned = None, False
+        self.export_root = None
 
     def __enter__(self):
         self.folder.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -127,6 +133,15 @@ class Session:
             if not self.poisoned:
                 (self.folder / 'client.lock').unlink(missing_ok=True)
             self.lock = None
+
+    def permit_exports(self, folder):
+        folder=Path(folder)
+        if (not folder.is_dir() or folder.resolve()!=folder or folder.parent.name!='resolve-proof'
+                or not re.fullmatch('[0-9a-f]{32}',folder.name) or not re.fullmatch('[0-9a-f]{32}',folder.parent.parent.name)
+                or folder.parent.parent.parent.name!='board-revisions'):
+            raise ValueError('Exports must stay inside a new managed revision proof folder.')
+        self.export_root=folder
+        write_private(self.folder/'export-grant.json',{'session':self.id,'directory':str(folder)})
 
     def proxy(self, ref, kind):
         return Proxy(self, ref, kind)

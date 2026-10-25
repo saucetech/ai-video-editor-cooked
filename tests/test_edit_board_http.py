@@ -81,6 +81,15 @@ class EditBoardHTTPTests(unittest.TestCase):
         self.assertEqual(status,200);self.assertEqual([a['name'] for a in json.loads(raw)['assets']],['broll.mp4'])
         self.assertEqual(self.request('POST','/board/assets',{})[0],405)
 
+    def test_styles_are_normalized_owned_and_proof_paths_are_finite(self):
+        style=self.root/'creator-teardowns'/'serif';style.mkdir(parents=True)
+        (style/'style.json').write_text(json.dumps({'captions':{'present':False},'look':{'font_class':'serif'}}),encoding='utf-8')
+        status,_,raw=self.request('GET','/board/styles')
+        self.assertEqual(status,200)
+        data=json.loads(raw);self.assertEqual(data['styles'][0]['style']['font'],'Georgia')
+        self.assertEqual(self.request('POST','/board/styles',{})[0],405)
+        self.assertEqual(self.request('GET','/board/proof?edit=/tmp/outside&revision=../../&proof=../../&file=/etc/hosts')[0],400)
+
     def test_board_upload_is_promoted_before_temporary_staging_expires(self):
         stage=self.root/'.staged/drop';stage.mkdir(parents=True);file=stage/'broll.mp4';file.write_bytes(b'owned broll')
         status,_,raw=self.request('POST','/board/import-asset',{'path':str(file)})

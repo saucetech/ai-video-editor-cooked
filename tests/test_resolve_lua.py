@@ -60,6 +60,19 @@ class LuaTransportTests(unittest.TestCase):
             session.proxy('pool', 'MediaPool').AppendToTimeline([{'mediaPoolItem':project}])
         self.assertEqual(requests[-1]['args'][0][0]['mediaPoolItem']['$ref'], 'project-1')
 
+    def test_frame_exports_require_scoped_nonexisting_revision_destination(self):
+        self.assertIn('ExportCurrentFrameAsStill',self.mod.METHODS['Project'],'Native still export is missing')
+        with self.mod.Session(self.runtime,timeout=.1) as session:
+            project=session.proxy('project','Project')
+            with self.assertRaises(ValueError):project.ExportCurrentFrameAsStill('/tmp/source.png')
+            root=self.runtime/'board-revisions'/('a'*32)/'resolve-proof'/('b'*32);root.mkdir(parents=True);root=root.resolve()
+            session.permit_exports(root)
+            for destination in ('/tmp/outside.png',str(root/'../source.png'),str(root/'native-0.jpg')):
+                with self.subTest(path=destination),self.assertRaises(ValueError):project.ExportCurrentFrameAsStill(destination)
+            existing=root/'native-0.png';existing.write_bytes(b'keep')
+            with self.assertRaises(ValueError):project.ExportCurrentFrameAsStill(str(existing))
+        self.assertFalse((self.folder/'request.json').exists())
+
     def test_unknown_methods_are_rejected_before_dispatch(self):
         with self.mod.Session(self.runtime, timeout=.1) as session:
             with self.assertRaises(AttributeError):

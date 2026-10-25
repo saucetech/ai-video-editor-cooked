@@ -60,11 +60,18 @@ class EditBoardTests(unittest.TestCase):
         folder=self.mod.revision_dir(self.edit,rid)
         self.assertTrue((folder/'words.json').is_file(), 'Revision must snapshot word timings')
         before=self.mod.artifacts(folder)
-        (folder/'words.json').write_text('[]')
+        (folder/'words.json').write_text('[]',encoding='utf-8')
         self.assertNotEqual(self.mod.artifacts(folder),before)
         (folder/'words.json').unlink()
         legacy=self.mod.fingerprint([folder/x for x in ('decisions.json','report.json','plan.json','board-rows.json')])
         self.assertEqual(self.mod.artifacts(folder),legacy)
+
+    def test_compare_requires_approved_current_native_revision(self):
+        self.assertTrue(hasattr(self.mod,'compare_resolve'),'Resolve comparison is missing')
+        state,rid=self.ready()
+        with self.assertRaisesRegex(ValueError,'Approve|native|timeline'):self.mod.compare_resolve(self.edit,rid,state['version'])
+        self.mod.approve(self.edit,rid,state['version'])
+        with self.assertRaisesRegex(ValueError,'native|timeline'):self.mod.compare_resolve(self.edit,rid,state['version'])
 
     def test_restore_maps_source_intervals_and_preserves_original_files(self):
         state = self.mod.load(self.edit)

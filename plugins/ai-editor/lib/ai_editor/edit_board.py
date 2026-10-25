@@ -344,6 +344,34 @@ def send_to_resolve(edit, revision_id, expected_version):
         return result
 
 
+def compare_resolve(edit, revision_id, expected_version):
+    import resolve_proof
+    edit=Path(edit).resolve()
+    with locked(edit):
+        board,ctx=current(edit,expected_version)
+        path,rev=checked_revision(edit,revision_id,board,ctx)
+        if board['approved_revision']!=revision_id or not rev['approved']:raise ValueError('Approve the current preview before comparing its native timeline.')
+        if rev.get('native_state')!='ready' or not rev.get('visual_digest'):raise ValueError('Create the native visual timeline before comparing.')
+        manifest=read(path/resolve.MANIFEST)
+        if manifest.get('timeline_id')!=rev['native_result']['timeline_id']:raise ValueError('Native timeline identity changed. Inspect the saved manifest.')
+        report=resolve_proof.capture(path)
+        rev['resolve_proof']={'id':report['id'],'created':report['created'],'digest':visuals.file_hash(path/'resolve-proof'/report['id']/'report.json')}
+        write(path/'revision.json',rev)
+        return {'proof':report}
+
+
+def proof_report(edit, rid, ident):
+    import resolve_proof
+    path=revision_dir(Path(edit).resolve(),rid);rev=read(path/'revision.json')
+    proof=rev.get('resolve_proof') or {}
+    if not isinstance(ident,str) or not re.fullmatch('[0-9a-f]{32}',ident) or ident!=proof.get('id'):raise ValueError('Choose the saved native comparison.')
+    folder=path/'resolve-proof'/ident
+    if folder.resolve()!=folder or visuals.file_hash(folder/'report.json')!=proof['digest']:raise ValueError('The comparison changed. Compare Resolve again.')
+    report=resolve_proof.verify_files(folder,read(folder/'report.json'))
+    if report['revision']!=rid or report['bundle_digest']!=rev.get('visual_digest') or report['timeline_id']!=rev.get('native_result',{}).get('timeline_id'):raise ValueError('This comparison belongs to a different revision.')
+    return folder,report
+
+
 def _sample_review(path):
     if (path / 'review.json').exists(): return
     with (path / 'sample-render.log').open('wb') as log:

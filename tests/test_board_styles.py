@@ -41,11 +41,23 @@ class StyleTests(unittest.TestCase):
         for change in ({'caption_treatment':'execute'}, {'caption_style':{**s,'size_pct':float('nan')}}, {'motion_result':'x'*181}):
             with self.subTest(change=change),self.assertRaises(ValueError):v.validate_row({**row,**change},[])
 
+    def test_measured_motion_duration_is_portable_and_shading_limits_are_explicit(self):
+        m=self.module();s=m.normalize({'captions':{'present':True,'color':'#EEDDCC'},'graphics':{'entrances':[{'duration_s':.217,'n':3,'ease':'expo.out'}]}},'Synthetic','a')
+        self.assertEqual(s['entrance_s'],.217)
+        self.assertEqual(s['transfer']['entrance_s']['basis'],'measured duration; approximated easing')
+        self.assertTrue(any('easing' in n for n in s['transfer']['notes']))
+        with self.assertRaises(ValueError):m.validate({**s,'transfer':{'notes':'invalid'}})
+        with tempfile.TemporaryDirectory() as tmp:
+            p=Path(tmp);library=p/'library';outside=p/'outside';library.mkdir();(outside/'reference').mkdir(parents=True)
+            (outside/'reference'/'style.json').write_text('{}',encoding='utf-8')
+            (library/'creator-teardowns').symlink_to(outside,target_is_directory=True)
+            with self.assertRaises(ValueError):m.load(library,'reference')
+
     def test_catalog_rejects_escape_and_symlink(self):
         m=self.module()
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);folder=root/'creator-teardowns'/'original';folder.mkdir(parents=True)
-            (folder/'style.json').write_text('{}')
+            (folder/'style.json').write_text('{}',encoding='utf-8')
             self.assertEqual(m.catalog(root)[0]['id'],'original')
             with self.assertRaises(ValueError):m.load(root,'../outside')
             (root/'creator-teardowns'/'escape').symlink_to(root.parent,target_is_directory=True)

@@ -49,6 +49,17 @@ def normalize(data, name, digest):
             if color(candidate,'') and candidate.upper() not in ('#000000','#FFFFFF'):
                 s['accent']=candidate.upper();break
     transfer['palette']={'basis':'sampled palette' if s['accent']!=DEFAULT['accent'] else 'default','applied':s['accent']}
+    entrances=graphics.get('entrances') or []
+    measured_entrances=[e for e in entrances if isinstance(e,dict) and number(e.get('duration_s'),.1,1,None) is not None] if isinstance(entrances,list) else []
+    if measured_entrances:
+        selected=max(measured_entrances,key=lambda e:number(e.get('n'),0,100000,0))
+        s['entrance_s']=selected['duration_s']
+        transfer['entrance_s']={'basis':'measured duration; approximated easing','applied':s['entrance_s']}
+        notes.append(f"Measured entrance duration {s['entrance_s']:g}s is used with cubic-out easing; source easing {str(selected.get('ease','unknown'))[:80]} is approximated.")
+    else:transfer['entrance_s']={'basis':'default','applied':s['entrance_s']}
+    for key in ('color','case','box','shadow','stroke'):
+        transfer[key]={'basis':'measured candidate' if measured and key in caps else 'inferred' if key=='case' and 'caption_case' in look else 'default','applied':s[key]}
+    notes.append('Not transferred: source cut rhythm, graphic density/holds, media references, tracked layout, secondary motion and exact entrance/exit effects.')
     notes+=['Long-side size units are preserved; text is fitted into a two-line safe region.',
             'Original native recipes approximate source motion; source easing, glass refraction, tracked graphics and face placement are not reproduced.',
             'Word nodes remain editable in Fusion; changing their wording requires a board rebuild to reflow.']
@@ -67,6 +78,8 @@ def validate(style):
     for key in ('color','accent'):
         if not color(s.get(key),''):raise ValueError('Use a six-digit caption color.')
     if any(type(s.get(k)) is not bool for k in ('box','shadow','stroke')):raise ValueError('Invalid caption contrast setting.')
+    if 'source' in s and (not isinstance(s['source'],dict) or any(not isinstance(s['source'].get(k),str) or len(s['source'][k])>160 for k in ('name','digest'))):raise ValueError('Invalid style source identity.')
+    if 'transfer' in s and (not isinstance(s['transfer'],dict) or not isinstance(s['transfer'].get('notes'),list) or any(not isinstance(n,str) or len(n)>1000 for n in s['transfer']['notes'])):raise ValueError('Invalid style transfer notes.')
     if len(json.dumps(s,allow_nan=False))>12000:raise ValueError('Style snapshot is too large.')
     # Strip unknown keys before they can influence graph construction.
     return {k:s[k] for k in (*DEFAULT,'source','transfer') if k in s}
@@ -74,7 +87,8 @@ def validate(style):
 
 def style_path(root, ident):
     if not isinstance(ident,str) or not re.fullmatch(r'[\w-]{1,120}',ident):raise ValueError('Choose a saved style from the library.')
-    folder=(Path(root).resolve()/'creator-teardowns').resolve()
+    root=Path(root).resolve();folder=(root/'creator-teardowns').resolve()
+    if not folder.is_relative_to(root):raise ValueError('Style folder must stay inside the library.')
     path=(folder/ident/'style.json').resolve()
     if not path.is_relative_to(folder) or path.parent.name!=ident or not path.is_file():raise ValueError('Saved style is unavailable or outside the library.')
     return path

@@ -63,6 +63,15 @@ class RecipeTests(unittest.TestCase):
                 self.assertEqual(max(alpha),0)
             v.verify_bundle(p)
 
+    def test_manual_line_breaks_survive_word_timing_and_long_hooks_get_readable_holds(self):
+        m=self.module();r=self.row();r['caption']='Make every\nframe count.';r['caption_treatment']='spotlight'
+        words=[{'word':t,'start':3.1+j*.5,'end':3.4+j*.5} for j,t in enumerate(r['caption'].split())]
+        s=m.build(r,'caption',640,360,30,words)
+        ys=[n['y'] for n in s['nodes'] if n.get('role')=='base']
+        self.assertEqual(len(set(ys)),2,'Authored line breaks must not disappear when timing is available')
+        r.update(motion_text='Make every single frame carry the meaning of your story',end_frame=150)
+        with self.assertRaisesRegex(ValueError,'short|hold'):m.build(r,'hero',640,360,30,[])
+
     def test_serif_font_and_size_are_the_same_scene_contract_for_both_renderers(self):
         m=self.module();s=m.build(self.row(),'caption',640,360,30,[])
         graph,checks=m.fusion(s,1280,720)

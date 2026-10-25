@@ -56,9 +56,11 @@ def build(row, kind, width, height, fps, words):
         if note:notes.append(note);timing='passage fallback'
         else:timing='word timestamps'
         groups=[aligned[i:i+style['words_per_phrase']] for i in range(0,len(aligned),style['words_per_phrase'])] if aligned else [[{'text':t,'start':0,'end':frames} for t in text.split()]]
-        # Keep manually authored line breaks only in static mode; timed phrases are deliberately regrouped.
+        manual_breaks='\n' in text
+        if aligned and manual_breaks:groups=[aligned]
+        # Authored line breaks take precedence over automatic phrase grouping.
         for page,group in enumerate(groups):
-            content=transform(' '.join(w['text'] for w in group) if aligned else text)
+            content=transform(' '.join(w['text'] for w in group) if aligned and not manual_breaks else text)
             lines,size=fit(content,width,height,min(max(width,height)*style['size_pct']/100,height*.09),family,weight)
             y=min(height*.87,max(height*.65,height*style['y_pct']/100));line_height=size*1.3
             a=group[0]['start'] if aligned else 0
@@ -80,7 +82,8 @@ def build(row, kind, width, height, fps, words):
             else:
                 for line_index,line in enumerate(lines):label(line,width/2,y+(line_index-(len(lines)-1)/2)*line_height,size,family,weight,style['color'],alpha,'base')
     else:
-        minimum=1.8 if kind=='prompt_result' else 1.1
+        minimum=max(1.1,len(row['motion_text'].split())*.25+2*style['entrance_s'])
+        if kind=='prompt_result':minimum=max(minimum,1.8,(len(row['motion_result'].split())*.22+2*style['entrance_s'])/.58)
         if frames<math.ceil(fps*minimum):raise ValueError(f'This hook is too short for a readable hold. Keep at least {minimum:g} seconds or choose a simple fade title.')
         ramp=min(round(fps*style['entrance_s']),frames//5);ramp=max(2,ramp)
         envelope=[min(ease(i/ramp),ease((frames-1-i)/ramp)) for i in range(frames)]

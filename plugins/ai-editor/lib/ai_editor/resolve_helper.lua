@@ -8,6 +8,7 @@ long write(int, const void *, unsigned long); int close(int);
 int rename(const char *, const char *); int chmod(const char *, unsigned short);
 typedef struct { long tv_sec; int tv_usec; } cooked_timeval;
 int gettimeofday(cooked_timeval *, void *);
+char *realpath(const char *, char *);
 ]]
 local C, null = ffi.C, {}
 local function clock()
@@ -122,6 +123,16 @@ local function dispatch(r)
   assert(type(r.args)=='table' and #r.args<10, 'Invalid arguments')
   if obj.kind=='FusionTool' and r.method=='SetInput' then
     assert(#r.args==2 and r.args[1]=='StyledText' and type(r.args[2])=='string' and #r.args[2]<=2000, 'Only bounded text changes are supported')
+  end
+  if obj.kind=='Project' and r.method=='ExportCurrentFrameAsStill' then
+    assert(#r.args==1 and type(r.args[1])=='string', 'Invalid export arguments')
+    local grant=decode(assert(readfile('export-grant.json'),'No native export grant'))
+    local directory,name=r.args[1]:match('^(.*)/([^/]+)$')
+    assert(grant.session==r.session and grant.directory==directory and name:match('^native%-%d+%.png$') and #name<=14, 'Export outside scoped proof folder')
+    local resolved=ffi.new('char[4096]')
+    assert(C.realpath(directory,resolved)~=nil and ffi.string(resolved)==directory, 'Export path is not canonical')
+    local fd=C.open(r.args[1],0)
+    if fd>=0 then C.close(fd); error('Proof export must not overwrite a file') end
   end
   local result=obj.object[r.method](obj.object, unpack(unpackValue(r.args)))
   if objectKinds[r.method] then return reference(result,objectKinds[r.method]) end

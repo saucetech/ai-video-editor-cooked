@@ -24,6 +24,7 @@ const fetch=async(path,options)=>{
   const request=options?.body?JSON.parse(options.body):{};
   let result;
   if(path==='/board/projects')result={edits:[{name:'edit',path:'/owned/edit'}]};
+  else if(path==='/board/styles')result={styles:[],default_style:{font:'Arial',weight:'Bold',treatment:'clean',size_pct:4.4,y_pct:82,words_per_phrase:5,color:'#FFFFFF',accent:'#C3DECB',case:'sentence',box:false,shadow:false,stroke:false,entrance_s:.3}};
   else if(path==='/board/assets')result={assets:[{name:'Local B-roll',path:'/owned/broll.mp4'}]};
   else if(path==='/board/load')result=clone(source);
   else if(path==='/board/approve'){source.approved_revision='preview';source.revisions[0].approved=true;result=clone(source);}
@@ -52,12 +53,15 @@ note.value='Keep this correction after approval';note.oninput();
 const caption=nodes.filter(e=>e['aria-label']==='Caption text passage 1').at(-1);
 assert.ok(caption,'Caption correction must be available');caption.value='Corrected caption';caption.oninput();
 const enabled=nodes.filter(e=>e['aria-label']==='Show caption passage 1').at(-1);enabled.checked=true;enabled.onchange();
-const motion=nodes.filter(e=>e['aria-label']==='Motion graphic passage 1').at(-1);motion.value='title';motion.onchange();
+const treatment=nodes.filter(e=>e['aria-label']==='Caption treatment passage 1').at(-1);
+assert.ok(treatment,'Advanced caption treatment must be selectable');treatment.value='spotlight';treatment.onchange();
+const motion=nodes.filter(e=>e['aria-label']==='Motion graphic passage 1').at(-1);motion.value='prompt_result';motion.onchange();
 const motionText=nodes.filter(e=>e['aria-label']==='Motion text passage 1').at(-1);motionText.value='Editable title';motionText.oninput();
+const resultText=nodes.filter(e=>e['aria-label']==='Hook result passage 1').at(-1);assert.ok(resultText);resultText.value='Visible result';resultText.oninput();
 const broll=nodes.filter(e=>e['aria-label']==='B-roll passage 1').at(-1);broll.value='/owned/broll.mp4';broll.onchange();
 await ids.get('save').onclick();await settle();
 assert.equal(savedRows[0].caption,'Corrected caption');assert.equal(savedRows[0].caption_enabled,true);
-assert.equal(savedRows[0].motion,'title');assert.equal(savedRows[0].motion_text,'Editable title');assert.equal(savedRows[0].broll,'/owned/broll.mp4');
+assert.equal(savedRows[0].caption_treatment,'spotlight');assert.equal(savedRows[0].motion_result,'Visible result');assert.equal(savedRows[0].motion,'prompt_result');assert.equal(savedRows[0].motion_text,'Editable title');assert.equal(savedRows[0].broll,'/owned/broll.mp4');
 assert.equal(savedRows[0].note,'Keep this correction after approval','Approval must not leave handlers attached to discarded row objects');
 assert.equal(source.approved_revision,null);
 source.approved_revision='preview';source.revisions[0].board_version=source.version;source.revisions[0].native_state='blocked';
