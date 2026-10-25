@@ -202,7 +202,7 @@ def save(edit, expected_version, rows, asset_roots=None):
 
 
 def artifacts(path):
-    return fingerprint([path / x for x in ('decisions.json', 'report.json', 'plan.json', 'board-rows.json')])
+    return fingerprint([path / x for x in ('decisions.json', 'report.json', 'plan.json', 'board-rows.json')] + ([path/'words.json'] if (path/'words.json').exists() else []))
 
 
 def preview(edit, expected_version):
@@ -232,6 +232,7 @@ def preview(edit, expected_version):
         write(path / 'report.json', {'source': ctx['source'], 'fps': fps, 'duration': ctx['total_frames'] / fps, 'frames': frames})
         write(path / 'plan.json', {'durationInFrames': record, 'zooms': zooms})
         write(path / 'board-rows.json', board['rows'])
+        if (edit/'words.raw.json').is_file():write(path/'words.json',read(edit/'words.raw.json'))
         rev = {'id': rid, 'created': time.time(), 'state': 'rendering', 'board_version': board['version'],
                'fingerprint': ctx['fingerprint'], 'artifact_digest': artifacts(path), 'approved': False,
                'native_state': None, 'selected_frames': record, 'error': None}

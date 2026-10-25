@@ -55,6 +55,17 @@ class EditBoardTests(unittest.TestCase):
             time.sleep(.08)
         self.fail('Preview did not finish')
 
+    def test_revision_binds_word_snapshot_without_changing_legacy_digest(self):
+        state,rid=self.ready()
+        folder=self.mod.revision_dir(self.edit,rid)
+        self.assertTrue((folder/'words.json').is_file(), 'Revision must snapshot word timings')
+        before=self.mod.artifacts(folder)
+        (folder/'words.json').write_text('[]')
+        self.assertNotEqual(self.mod.artifacts(folder),before)
+        (folder/'words.json').unlink()
+        legacy=self.mod.fingerprint([folder/x for x in ('decisions.json','report.json','plan.json','board-rows.json')])
+        self.assertEqual(self.mod.artifacts(folder),legacy)
+
     def test_restore_maps_source_intervals_and_preserves_original_files(self):
         state = self.mod.load(self.edit)
         self.assertEqual([(r['start_frame'], r['end_frame'], r['keep']) for r in state['rows']],

@@ -7,14 +7,15 @@ import uuid
 import subprocess
 from fractions import Fraction
 from pathlib import Path
+import board_styles
 
-FIELDS = ('caption_enabled', 'caption', 'motion', 'motion_text', 'broll', 'broll_start')
+FIELDS = ('caption_enabled', 'caption', 'motion', 'motion_text', 'broll', 'broll_start', 'caption_treatment', 'caption_style', 'motion_result')
 VIDEO_EXTS = {'.mp4', '.mov', '.m4v', '.webm', '.mkv'}
 
 
 def row_defaults(row):
     return {'caption_enabled': False, 'caption': row.get('text', '')[:500], 'motion': 'none',
-            'motion_text': '', 'broll': '', 'broll_start': 0.0, **row}
+            'caption_treatment': 'panel', 'caption_style': None, 'motion_result': '', 'motion_text': '', 'broll': '', 'broll_start': 0.0, **row}
 
 
 def file_hash(path):
@@ -75,13 +76,16 @@ def promote_staged(path, roots):
 def validate_row(row, roots):
     row = row_defaults(row)
     if type(row['caption_enabled']) is not bool: raise ValueError('Caption enabled must be checked or unchecked.')
-    for key, limit in [('caption', 500), ('motion_text', 180)]:
+    for key, limit in [('caption', 500), ('motion_text', 180), ('motion_result', 180)]:
         text = row[key]
         if not isinstance(text, str) or len(text) > limit or any(ord(c) < 32 and c not in '\n\t' for c in text):
             raise ValueError('Caption or motion text is invalid or too long.')
-    if row['motion'] not in ('none', 'title', 'lower_third'): raise ValueError('Choose a supported motion treatment.')
+    if row['motion'] not in board_styles.MOTIONS: raise ValueError('Choose a supported motion treatment.')
     if row['caption_enabled'] and not row['caption'].strip(): raise ValueError('Enter caption text before enabling it.')
     if row['motion'] != 'none' and not row['motion_text'].strip(): raise ValueError('Enter the title or lower-third text.')
+    if row['caption_treatment'] not in board_styles.TREATMENTS:raise ValueError('Choose a supported caption treatment.')
+    if row['caption_style'] is not None:row['caption_style']=board_styles.validate(row['caption_style'])
+    if row['motion']=='prompt_result' and not row['motion_result'].strip():raise ValueError('Enter the result text for this hook.')
     offset = row['broll_start']
     if type(offset) not in (int, float) or not math.isfinite(offset) or offset < 0: raise ValueError('B-roll in-point must be a nonnegative number of seconds.')
     if not isinstance(row['broll'], str): raise ValueError('Choose a local B-roll video.')
